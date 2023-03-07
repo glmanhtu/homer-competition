@@ -1,3 +1,4 @@
+import numpy as np
 import torchvision.transforms
 import wandb
 from PIL import Image
@@ -16,6 +17,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, log_
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
+        box = box.astype(np.int64)
         box_data = {
             "position": {
                 "minX": box[0],
