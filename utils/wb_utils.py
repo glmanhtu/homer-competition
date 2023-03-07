@@ -30,7 +30,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, log_
             "box_caption": "%s (%.3f) - Scale: (%.3f)" % (class_id_to_label[v_labels[b_i]], v_scores[b_i],
                                                           box_scale_pred[b_i]),
             "domain": "pixel",
-            "scores": {"score": v_scores[b_i]}}
+            "scores": {"score": float(v_scores[b_i])}}
         all_boxes.append(box_data)
 
     # log to wandb: raw image, predictions, and dictionary of class labels for each class id
