@@ -3,6 +3,7 @@ import os.path
 import time
 
 import torch
+import torchvision.transforms
 from torch.utils.data import DataLoader
 
 import wandb
@@ -13,7 +14,7 @@ from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, MetricLogging
-from utils.transforms import ToTensor, Compose
+from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize
 
 args = TrainOptions().parse()
 
@@ -34,12 +35,21 @@ class Trainer:
         self._working_dir = os.path.join(args.checkpoints_dir, args.name)
         self._model = ModelsFactory.get_model(args, self._working_dir, is_train=True, device=device,
                                               dropout=args.dropout)
-        transforms = Compose([ToTensor()])
+        transforms = Compose([
+            ImageTransformCompose([
+                torchvision.transforms.ToPILImage(),
+                torchvision.transforms.RandomApply([
+                    torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
+                ], p=0.5)
+            ]),
+            FixedImageResize(args.image_size),
+            ToTensor()
+        ])
         dataset_train = PapyrusDataset(args.dataset, transforms, is_training=True)
         self.data_loader_train = DataLoader(dataset_train, shuffle=True, num_workers=args.n_threads_train,
                                             collate_fn=misc.collate_fn,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
-        transforms = Compose([ToTensor()])
+        transforms = Compose([FixedImageResize(args.image_size), ToTensor()])
         dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
 
         self.data_loader_val = DataLoader(dataset_val, shuffle=True, num_workers=args.n_threads_test,
@@ -145,7 +155,7 @@ class Trainer:
                 img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'].numpy(),
                                               outputs[0]['labels'].type(torch.int64).numpy(),
                                               outputs[0]['scores'].numpy(), outputs[0]['extra_head_pred'],
-                                              log_width=625, log_height=625)
+                                              target[0]['avg_box_scale'].item())
                 logging_imgs.append(img)
 
         coco_evaluator.synchronize_between_processes()

@@ -4,16 +4,28 @@ import random
 import cv2
 import matplotlib
 import numpy as np
+import torchvision
 from matplotlib import pyplot as plt, patches
+
+from options.train_options import TrainOptions
+from utils.transforms import Compose, ImageTransformCompose, FixedImageResize
+
 matplotlib.use('MACOSX')
 from dataset.papyrus import PapyrusDataset
 
-arg_parser = argparse.ArgumentParser(description='Training')
-arg_parser.add_argument('--dataset', type=str, required=True, help="path to dataset")
-args = arg_parser.parse_args()
+args = TrainOptions().parse()
 
 
-dataset = PapyrusDataset(args.dataset, None, is_training=True)
+transforms = Compose([
+    ImageTransformCompose([
+        torchvision.transforms.ToPILImage(),
+        torchvision.transforms.RandomApply([
+            torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
+        ], p=0.5) ]),
+    FixedImageResize(args.image_size)
+])
+
+dataset = PapyrusDataset(args.dataset, transforms, is_training=True)
 
 colour_map = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
               "#C895C5", "#320033", "#FF6832", "#66E1D3", "#CFCDAC", "#D0AC94", "#7ED379", "#012C58"]
@@ -23,10 +35,12 @@ for image, target in dataset:
     dpi = 80
 
     scale = target['avg_box_scale'].item()
+    print(scale)
+    image = np.asarray(image)
 
-    origin_w, origin_h, _ = image.shape
+    # origin_w, origin_h, _ = image.shape
 
-    image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    # image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
     height, width, depth = image.shape
 
@@ -36,7 +50,7 @@ for image, target in dataset:
     fig = plt.figure(figsize=figsize)
     img_id = target['image_id'].item()
 
-    bboxes = target['boxes'].numpy() * scale
+    bboxes = target['boxes'].numpy()
 
     ax = fig.add_axes([0, 0, 1, 1])
 

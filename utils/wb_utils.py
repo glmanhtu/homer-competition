@@ -8,17 +8,11 @@ display_ids = {"Fragment": 1}
 class_id_to_label = {int(v): k for k, v in display_ids.items()}
 
 
-def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, log_width, log_height):
+def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, box_scale_gt):
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
-    if raw_image.width > log_width or raw_image.height > log_height:
-        if raw_image.height > raw_image.width:
-            factor = log_height / raw_image.height
-        else:
-            factor = log_width / raw_image.width
-        raw_image = raw_image.resize((int(raw_image.width * factor), int(raw_image.height * factor)))
-        v_boxes = v_boxes * factor
     all_boxes = []
+    box_scale_gt = box_scale_gt
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
@@ -31,8 +25,8 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, log_
             },
             "class_id": int(v_labels[b_i]),
             # optionally caption each box with its class and score
-            "box_caption": "%s (%.3f) - Scale: (%.3f)" % (class_id_to_label[v_labels[b_i]], v_scores[b_i],
-                                                          box_scale_pred[b_i]),
+            "box_caption": "%s (%.3f) - Scale: %.3f/%.3f" % (class_id_to_label[v_labels[b_i]], v_scores[b_i],
+                                                             box_scale_pred[b_i], box_scale_gt.item()),
             "domain": "pixel",
             "scores": {"score": float(v_scores[b_i])}}
         all_boxes.append(box_data)
