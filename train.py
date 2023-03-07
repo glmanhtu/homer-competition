@@ -139,7 +139,7 @@ class Trainer:
             res = {target["image_id"].item(): output for target, output in zip(region_target, outputs)}
             coco_evaluator.update(res)
 
-            if i_train_batch % 5 == 0 and len(outputs) > 0:
+            if i_train_batch % 2 == 0 and len(outputs) > 0:
                 img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'].numpy(),
                                               outputs[0]['labels'].type(torch.int64).numpy(),
                                               outputs[0]['scores'].numpy(), outputs[0]['extra_head_pred'],
