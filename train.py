@@ -73,7 +73,7 @@ class Trainer:
             if not i_epoch % args.n_epochs_per_eval == 0:
                 continue
 
-            val_dict = self._validate(i_epoch, self.data_loader_val)
+            val_dict, log_imgs = self._validate(i_epoch, self.data_loader_val)
 
             current_m_ap = val_dict['val/mAP_0.5:0.95']
             if current_m_ap > best_m_ap:
@@ -82,6 +82,7 @@ class Trainer:
                 for key in val_dict:
                     wandb.run.summary[f'best_model/{key}'] = val_dict[key]
                 self._model.save()  # save best model
+                wandb.log({'val/prediction': log_imgs}, step=self._current_step)
 
             # print epoch info
             time_epoch = time.time() - epoch_start_time
@@ -146,8 +147,6 @@ class Trainer:
                                               outputs[0]['scores'].numpy(), outputs[0]['extra_head_pred'],
                                               log_width=625, log_height=625)
                 logging_imgs.append(img)
-        if len(logging_imgs) > 0:
-            wandb.log({'val/prediction': logging_imgs}, step=self._current_step)
 
         coco_evaluator.synchronize_between_processes()
         coco_evaluator.accumulate()
@@ -166,7 +165,7 @@ class Trainer:
         wandb.log(val_dict, step=self._current_step)
         display_terminal_eval(val_start_time, i_epoch, val_dict)
 
-        return val_dict
+        return val_dict, logging_imgs
 
 
 if __name__ == "__main__":

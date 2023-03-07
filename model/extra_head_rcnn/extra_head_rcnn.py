@@ -24,8 +24,8 @@ class ExtraHeadRCNN(GeneralizedRCNN):
                  rpn_score_thresh=0.0,
                  # Box parameters
                  box_roi_pool=None, box_head=None, box_predictor=None,
-                 box_score_thresh=0.7, box_nms_thresh=0.5, box_detections_per_img=100,
-                 box_fg_iou_thresh=0.7, box_bg_iou_thresh=0.3,
+                 box_score_thresh=0.7, box_nms_thresh=0.7, box_detections_per_img=100,
+                 box_fg_iou_thresh=0.8, box_bg_iou_thresh=0.2,
                  box_batch_size_per_image=72, box_positive_fraction=0.25,
                  bbox_reg_weights=None,
                  # AU parameters
