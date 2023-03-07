@@ -49,7 +49,12 @@ class Trainer:
         self.data_loader_train = DataLoader(dataset_train, shuffle=True, num_workers=args.n_threads_train,
                                             collate_fn=misc.collate_fn,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
-        transforms = Compose([FixedImageResize(args.image_size), ToTensor()])
+        transforms = Compose([
+            ImageTransformCompose([
+                torchvision.transforms.ToPILImage(),
+            ]),
+            FixedImageResize(args.image_size),
+            ToTensor()])
         dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
 
         self.data_loader_val = DataLoader(dataset_val, shuffle=True, num_workers=args.n_threads_test,
