@@ -144,8 +144,8 @@ class Trainer:
             metrics.update('box_scale_mse', box_scale_pred, box_scale_gt)
 
             if i_train_batch % 5 == 0:
-                img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'], outputs[0]['labels'],
-                                              outputs[0]['scores'], log_width=625, log_height=625)
+                img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'].numpy(), outputs[0]['labels'].numpy(),
+                                              outputs[0]['scores'].numpy(), log_width=625, log_height=625)
                 wandb.log({'val/prediction': img}, step=self._current_step)
 
         coco_evaluator.synchronize_between_processes()

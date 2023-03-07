@@ -1,7 +1,6 @@
-# this is the order in which my classes will be displayed
-import PIL
 import torchvision.transforms
 import wandb
+from PIL import Image
 
 display_ids = {"Fragment": 1}
 # this is a revese map of the integer class id to the string class label
@@ -10,18 +9,18 @@ class_id_to_label = {int(v): k for k, v in display_ids.items()}
 
 def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, log_width, log_height):
     # load raw input photo
-    raw_image = torchvision.transforms.ToPILImage(tensor_img)
-    raw_image = raw_image.thumbnail((log_width, log_height), PIL.Image.ANTIALIAS)
+    raw_image = torchvision.transforms.ToPILImage()(tensor_img)
+    raw_image = raw_image.thumbnail((log_width, log_height), Image.ANTIALIAS)
     all_boxes = []
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
         box_data = {
             "position": {
-                "minX": box.xmin,
-                "maxX": box.xmax,
-                "minY": box.ymin,
-                "maxY": box.ymax
+                "minX": box[0],
+                "maxX": box[2],
+                "minY": box[1],
+                "maxY": box[3]
             },
             "class_id": display_ids[v_labels[b_i]],
             # optionally caption each box with its class and score
