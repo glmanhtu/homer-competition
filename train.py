@@ -75,9 +75,9 @@ class Trainer:
 
             val_dict = self._validate(i_epoch, self.data_loader_val)
 
-            current_m_ap = val_dict['val/m_ap']
+            current_m_ap = val_dict['val/mAP_0.5:0.95']
             if current_m_ap > best_m_ap:
-                print("mAP improved, from {:.4f} to {:.4f}".format(best_m_ap, current_m_ap))
+                print("mAP_0.5:0.95 improved, from {:.4f} to {:.4f}".format(best_m_ap, current_m_ap))
                 best_m_ap = current_m_ap
                 for key in val_dict:
                     wandb.run.summary[f'best_model/{key}'] = val_dict[key]
