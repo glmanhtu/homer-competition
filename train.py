@@ -131,6 +131,7 @@ class Trainer:
         iou_types = ["bbox"]
         coco_evaluator = CocoEvaluator(coco, iou_types)
 
+        logging_imgs = []
         for i_train_batch, batch in enumerate(val_loader):
             images, target = batch
             region_predictions = self._model.forward(images)
@@ -144,7 +145,9 @@ class Trainer:
                                               outputs[0]['labels'].type(torch.int64).numpy(),
                                               outputs[0]['scores'].numpy(), outputs[0]['extra_head_pred'],
                                               log_width=625, log_height=625)
-                wandb.log({'val/prediction': img}, step=self._current_step)
+                logging_imgs.append(img)
+        if len(logging_imgs) > 0:
+            wandb.log({'val/prediction': logging_imgs}, step=self._current_step)
 
         coco_evaluator.synchronize_between_processes()
         coco_evaluator.accumulate()
