@@ -104,11 +104,14 @@ class ModelWrapper:
         self._is_train = False
 
     def forward(self, images):
+        images = [x.to(self._device, non_blocking=True) for x in images]
         with torch.set_grad_enabled(self._is_train):
             return self._model(images)
 
     def compute_loss(self, batch_data):
         images, target = batch_data
+        images = [x.to(self._device, non_blocking=True) for x in images]
+        target = [{k: v.to(self._device, non_blocking=True) for k, v in t.items()} for t in target]
 
         all_losses = {}
         with torch.set_grad_enabled(self._is_train):
