@@ -140,7 +140,8 @@ class Trainer:
             coco_evaluator.update(res)
 
             if i_train_batch % 5 == 0 and len(outputs) > 0:
-                img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'].numpy(), outputs[0]['labels'].numpy(),
+                img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'].numpy(),
+                                              outputs[0]['labels'].type(torch.int64).numpy(),
                                               outputs[0]['scores'].numpy(), outputs[0]['extra_head_pred'],
                                               log_width=625, log_height=625)
                 wandb.log({'val/prediction': img}, step=self._current_step)

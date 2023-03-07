@@ -22,7 +22,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, log_
                 "minY": box[1],
                 "maxY": box[3]
             },
-            "class_id": class_id_to_label[v_labels[b_i]],
+            "class_id": v_labels[b_i],
             # optionally caption each box with its class and score
             "box_caption": "%s (%.3f) - Scale: (%.3f)" % (class_id_to_label[v_labels[b_i]], v_scores[b_i],
                                                           box_scale_pred[b_i]),
