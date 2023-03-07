@@ -119,7 +119,7 @@ class PapyrusDataset(Dataset):
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         avg_box_size = torch.sqrt(boxes[:, 3] - boxes[:, 1] + boxes[:, 2] - boxes[:, 0]).mean()
-        avg_box_scale = (3.0 / avg_box_size).repeat(len(regions))
+        avg_box_scale = 3.0 / avg_box_size
 
         # there is only one class
         labels = torch.as_tensor(labels, dtype=torch.int64)

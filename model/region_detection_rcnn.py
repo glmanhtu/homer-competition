@@ -83,8 +83,10 @@ class BoxSizeCriterion(nn.Module):
 
     def forward(self, target, pred):
         prediction = torch.cat(pred, dim=0).view(-1)
-        gt = torch.cat([x['avg_box_scale'] for x in target], dim=0).view(-1)
-        return self.criterion(prediction, gt)
+        gt = []
+        for i in range(len(pred)):
+            gt.append(target[i]['avg_box_scale'].repeat(len(pred[i])))
+        return self.criterion(prediction, torch.cat(gt, dim=0).view(-1))
 
 
 class BoxAvgSizeHead(nn.Module):
