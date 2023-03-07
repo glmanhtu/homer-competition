@@ -13,11 +13,10 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, log_
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
     raw_image.thumbnail((log_width, log_height), Image.ANTIALIAS)
     all_boxes = []
-    print(v_labels)
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
-        box = box.astype(np.int64)
+        box = box.astype(int)
         box_data = {
             "position": {
                 "minX": box[0],
