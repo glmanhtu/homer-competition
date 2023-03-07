@@ -16,13 +16,12 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, log_
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
-        box = box.astype(int)
         box_data = {
             "position": {
-                "minX": box[0],
-                "maxX": box[2],
-                "minY": box[1],
-                "maxY": box[3]
+                "minX": int(box[0]),
+                "maxX": int(box[2]),
+                "minY": int(box[1]),
+                "maxY": int(box[3])
             },
             "class_id": int(v_labels[b_i]),
             # optionally caption each box with its class and score
