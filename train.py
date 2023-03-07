@@ -42,7 +42,7 @@ class Trainer:
         transforms = Compose([ToTensor()])
         dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
 
-        self.data_loader_val = DataLoader(dataset_val, shuffle=False, num_workers=args.n_threads_test,
+        self.data_loader_val = DataLoader(dataset_val, shuffle=True, num_workers=args.n_threads_test,
                                           collate_fn=misc.collate_fn, batch_size=args.batch_size)
 
         self.early_stop = EarlyStop(args.early_stop)
@@ -140,7 +140,7 @@ class Trainer:
             res = {target["image_id"].item(): output for target, output in zip(region_target, outputs)}
             coco_evaluator.update(res)
 
-            if i_train_batch % 2 == 0 and len(outputs) > 0:
+            if len(outputs) > 0:
                 img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'].numpy(),
                                               outputs[0]['labels'].type(torch.int64).numpy(),
                                               outputs[0]['scores'].numpy(), outputs[0]['extra_head_pred'],
