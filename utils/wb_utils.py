@@ -7,7 +7,7 @@ display_ids = {"Fragment": 1}
 class_id_to_label = {int(v): k for k, v in display_ids.items()}
 
 
-def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, log_width, log_height):
+def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, log_width, log_height):
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
     raw_image.thumbnail((log_width, log_height), Image.ANTIALIAS)
@@ -24,7 +24,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, log_width, log_heigh
             },
             "class_id": display_ids[v_labels[b_i]],
             # optionally caption each box with its class and score
-            "box_caption": "%s (%.3f)" % (v_labels[b_i], v_scores[b_i]),
+            "box_caption": "%s (%.3f) - Scale: (%.3f)" % (v_labels[b_i], v_scores[b_i], box_scale_pred[b_i]),
             "domain": "pixel",
             "scores": {"score": v_scores[b_i]}}
         all_boxes.append(box_data)

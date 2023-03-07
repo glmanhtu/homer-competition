@@ -130,7 +130,6 @@ class Trainer:
         coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
         iou_types = ["bbox"]
         coco_evaluator = CocoEvaluator(coco, iou_types)
-        metrics = MetricLogging()
 
         for i_train_batch, batch in enumerate(val_loader):
             images, target = batch
@@ -139,13 +138,11 @@ class Trainer:
             region_target = [convert_region_target(x) for x in target]
             res = {target["image_id"].item(): output for target, output in zip(region_target, outputs)}
             coco_evaluator.update(res)
-            box_scale_pred = torch.stack([x['extra_head_pred'] for x in outputs])
-            box_scale_gt = torch.stack([x['avg_box_scale'] for x in target])
-            metrics.update('box_scale_mse', box_scale_pred, box_scale_gt)
 
-            if i_train_batch % 5 == 0:
+            if i_train_batch % 5 == 0 and len(outputs) > 0:
                 img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'].numpy(), outputs[0]['labels'].numpy(),
-                                              outputs[0]['scores'].numpy(), log_width=625, log_height=625)
+                                              outputs[0]['scores'].numpy(), outputs[0]['extra_head_pred'],
+                                              log_width=625, log_height=625)
                 wandb.log({'val/prediction': img}, step=self._current_step)
 
         coco_evaluator.synchronize_between_processes()
@@ -155,7 +152,6 @@ class Trainer:
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
 
         val_dict = {
-            f'{mode}/box_scale_mse': metrics.get_mse_loss('box_scale_mse').item(),
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],
