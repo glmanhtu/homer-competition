@@ -14,7 +14,7 @@ from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, MetricLogging
-from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize
+from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage
 
 args = TrainOptions().parse()
 
@@ -42,6 +42,8 @@ class Trainer:
                     torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
                 ], p=0.5)
             ]),
+            RandomCropImage(min_factor=0.3, max_factor=1, min_iou_papyrus=0.2),
+            PaddingImage(padding_size=30),
             FixedImageResize(args.image_size),
             ToTensor()
         ])
@@ -53,6 +55,7 @@ class Trainer:
             ImageTransformCompose([
                 torchvision.transforms.ToPILImage(),
             ]),
+            PaddingImage(padding_size=30),
             FixedImageResize(args.image_size),
             ToTensor()])
         dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)

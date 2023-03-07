@@ -8,7 +8,7 @@ import torchvision
 from matplotlib import pyplot as plt, patches
 
 from options.train_options import TrainOptions
-from utils.transforms import Compose, ImageTransformCompose, FixedImageResize
+from utils.transforms import Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage
 
 matplotlib.use('MACOSX')
 from dataset.papyrus import PapyrusDataset
@@ -21,7 +21,9 @@ transforms = Compose([
         torchvision.transforms.ToPILImage(),
         torchvision.transforms.RandomApply([
             torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
-        ], p=0.5) ]),
+        ], p=0.5)]),
+    RandomCropImage(min_factor=0.3, max_factor=1, min_iou_papyrus=0.2),
+    PaddingImage(padding_size=30),
     FixedImageResize(args.image_size)
 ])
 
@@ -50,7 +52,7 @@ for image, target in dataset:
     fig = plt.figure(figsize=figsize)
     img_id = target['image_id'].item()
 
-    bboxes = target['boxes'].numpy()
+    bboxes = target['regions'].numpy()
 
     ax = fig.add_axes([0, 0, 1, 1])
 
