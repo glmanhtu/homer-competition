@@ -10,7 +10,7 @@ class_id_to_label = {int(v): k for k, v in display_ids.items()}
 def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, log_width, log_height):
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
-    raw_image = raw_image.thumbnail((log_width, log_height), Image.ANTIALIAS)
+    raw_image.thumbnail((log_width, log_height), Image.ANTIALIAS)
     all_boxes = []
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
