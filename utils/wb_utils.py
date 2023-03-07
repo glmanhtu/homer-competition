@@ -12,7 +12,6 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, box_
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
     all_boxes = []
-    box_scale_gt = box_scale_gt
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
@@ -26,7 +25,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, box_scale_pred, box_
             "class_id": int(v_labels[b_i]),
             # optionally caption each box with its class and score
             "box_caption": "%s (%.3f) - Scale: %.3f/%.3f" % (class_id_to_label[v_labels[b_i]], v_scores[b_i],
-                                                             box_scale_pred[b_i], box_scale_gt.item()),
+                                                             box_scale_pred[b_i], box_scale_gt),
             "domain": "pixel",
             "scores": {"score": float(v_scores[b_i])}}
         all_boxes.append(box_data)
