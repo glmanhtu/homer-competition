@@ -124,6 +124,35 @@ class RandomCropImage(nn.Module):
         return self.forward(image, target, n_times + 1)
 
 
+class RandomPaddingImage(nn.Module):
+    def __init__(self, min_factor=0.05, max_factor=0.3, color=(255, 255, 255)):
+        super().__init__()
+        self.min_factor = min_factor
+        self.max_factor = max_factor
+        self.color = color
+
+    def forward(self, image, target):
+        padding_size = random.randint(int(self.min_factor * 100), int(self.max_factor * 100)) / 100.
+        padding_size = padding_size / len(target['regions'])
+        right = int(padding_size * image.width)
+        left = int(padding_size * image.width)
+        top = int(padding_size * image.height)
+        bottom = int(padding_size * image.height)
+
+        width, height = image.size
+
+        new_width = width + right + left
+        new_height = height + top + bottom
+
+        result = Image.new(image.mode, (new_width, new_height), self.color)
+
+        result.paste(image, (left, top))
+
+        target['boxes'] = shift_coordinates(target['boxes'], -left, -top)
+        target['regions'] = shift_coordinates(target['regions'], -left, -top)
+
+        return result, target
+
 
 class PaddingImage(nn.Module):
     def __init__(self, padding_size=10, color=(255, 255, 255)):
