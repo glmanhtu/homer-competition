@@ -49,6 +49,48 @@ def validate_boxes(boxes, labels, width, height, border_threshold=10, min_size=2
     return boxes, labels
 
 
+def crop_image(image, target, new_x, new_y, new_width, new_height):
+    new_img = image.crop((new_x, new_y, new_x + new_width, new_y + new_height))
+    boxes = shift_coordinates(target['boxes'], new_x, new_y)
+    boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
+    regions = shift_coordinates(target['regions'], new_x, new_y)
+    min_size = 0.1 * (min(new_width, new_height))
+    regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
+                                            min_size=min_size)
+    target['boxes'] = boxes
+    target['labels'] = labels
+    target['regions'] = regions
+    target['region_labels'] = region_labels
+    target['area'] = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+    target['region_area'] = (regions[:, 3] - regions[:, 1]) * (regions[:, 2] - regions[:, 0])
+    target['iscrowd'] = torch.zeros((labels.shape[0],), dtype=torch.int64)
+    return new_img, target
+
+
+class RandomLongRectangleCrop(nn.Module):
+    def __init__(self, split_at=0.6):
+        super().__init__()
+        self.split_at = split_at
+
+    def forward(self, image, target):
+        new_height, new_width = image.height, image.width
+        take_first_part = random.choice([0, 1]) == 1
+        min_x, min_y = 0, 0
+        if image.height / image.width >= 1.3:
+            new_height = int(self.split_at * image.height)
+            if not take_first_part:
+                min_x, min_y = 0, image.height - new_height
+
+        elif image.width / image.height >= 1.3:
+            new_width = int(self.split_at * image.width)
+            if not take_first_part:
+                min_x, min_y = image.width - new_width, 0
+        else:
+            return image, target
+
+        return crop_image(image, target, min_x, min_y, new_width, new_height)
+
+
 class RandomCropImage(nn.Module):
     def __init__(self, min_factor, max_factor, min_iou_papyrus=0.2):
         super().__init__()
@@ -73,21 +115,7 @@ class RandomCropImage(nn.Module):
             for region in target['regions']:
                 iou = bops.box_iou(patch.view(1, -1), region.view(1, -1))
                 if iou > self.min_iou_papyrus:
-                    new_img = image.crop((new_x, new_y, new_x + new_width, new_y + new_height))
-                    boxes = shift_coordinates(target['boxes'], new_x, new_y)
-                    boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
-                    regions = shift_coordinates(target['regions'], new_x, new_y)
-                    min_size = 0.1 * (min(new_width, new_height))
-                    regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
-                                                            min_size=min_size)
-                    target['boxes'] = boxes
-                    target['labels'] = labels
-                    target['regions'] = regions
-                    target['region_labels'] = region_labels
-                    target['area'] = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-                    target['region_area'] = (regions[:, 3] - regions[:, 1]) * (regions[:, 2] - regions[:, 0])
-                    target['iscrowd'] = torch.zeros((labels.shape[0],), dtype=torch.int64)
-                    return new_img, target
+                    return crop_image(image, target, new_x, new_y, new_width, new_height)
 
 
 class PaddingImage(nn.Module):
