@@ -1,7 +1,6 @@
 import torch
 import torchvision
 from torch import nn
-from torchvision.models import ResNet18_Weights
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
@@ -10,12 +9,12 @@ from model.extra_head_rcnn.extra_head_rcnn import ExtraHeadRCNN
 
 class RegionDetectionRCNN(nn.Module):
 
-    def __init__(self, device, n_classes, img_size, dropout=0.5):
+    def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()
-        anchor_sizes = ((64,), (128,), (256,), (512,))
+        anchor_sizes = ((128,), (256,), (384,), (512,))
         aspect_ratios = ((0.25, 0.5, 1.0, 1.5, 2.0),) * len(anchor_sizes)
         rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
-        backbone = resnet_fpn_backbone('resnet18', weights=ResNet18_Weights.DEFAULT, returned_layers=[1, 2, 3])
+        backbone = resnet_fpn_backbone(arch, pretrained=True, returned_layers=[1, 2, 3])
         roi_pooler = torchvision.ops.MultiScaleRoIAlign(featmap_names=['0', '1', '2'],
                                                         output_size=7,
                                                         sampling_ratio=2)

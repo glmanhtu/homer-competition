@@ -8,6 +8,6 @@ class ModelsFactory:
 
     @staticmethod
     def get_model(args, working_dir, is_train, device, dropout=0.4):
-        model = RegionDetectionRCNN(device, 2, args.image_size, dropout=dropout)
+        model = RegionDetectionRCNN(args.arch, device, 2, args.image_size, dropout=dropout)
         model = ModelWrapper(args, working_dir, model, is_train, device)
         return model
