@@ -26,7 +26,7 @@ def shift_coordinates(coordinates, offset_x, offset_y):
     return coordinates
 
 
-def validate_boxes(boxes, labels, width, height, border_threshold=10, min_size=2., drop_if_missing=False):
+def validate_boxes(boxes, labels, width, height, border_threshold=10, min_w=2., min_h=2, drop_if_missing=False):
     invalid_boxes = torch.logical_or(boxes[:, 0] > width - border_threshold, boxes[:, 2] < border_threshold)
     invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] > height - border_threshold)
     invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] < border_threshold)
@@ -43,7 +43,7 @@ def validate_boxes(boxes, labels, width, height, border_threshold=10, min_size=2
     boxes[:, 1][boxes[:, 1] < 0] = 0.
     boxes[:, 2][boxes[:, 2] > width] = float(width)
     boxes[:, 3][boxes[:, 3] > height] = float(height)
-    invalid_boxes = torch.logical_or(boxes[:, 2] - boxes[:, 0] < min_size, boxes[:, 3] - boxes[:, 1] < min_size)
+    invalid_boxes = torch.logical_or(boxes[:, 2] - boxes[:, 0] < min_w, boxes[:, 3] - boxes[:, 1] < min_h)
     boxes = boxes[torch.logical_not(invalid_boxes)]
     labels = labels[torch.logical_not(invalid_boxes)]
     return boxes, labels
@@ -54,9 +54,9 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     boxes = shift_coordinates(target['boxes'], new_x, new_y)
     boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
     regions = shift_coordinates(target['regions'], new_x, new_y)
-    min_size = 0.1 * (min(new_width, new_height))
+    min_factor = 0.05
     regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
-                                            min_size=min_size)
+                                            min_w=new_width*min_factor, min_h=new_height*min_factor)
     target['boxes'] = boxes
     target['labels'] = labels
     target['regions'] = regions

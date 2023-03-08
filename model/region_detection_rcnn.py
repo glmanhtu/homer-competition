@@ -11,7 +11,7 @@ class RegionDetectionRCNN(nn.Module):
 
     def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()
-        anchor_sizes = ((64,), (128,), (256,), (512,))
+        anchor_sizes = ((128,), (256,), (384,), (512,))
         aspect_ratios = ((0.25, 0.5, 1.0, 1.5, 2.0),) * len(anchor_sizes)
         rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
         backbone = resnet_fpn_backbone(arch, pretrained=True, returned_layers=[1, 2, 3])
