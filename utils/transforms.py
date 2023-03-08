@@ -74,14 +74,19 @@ class RandomCropImage(nn.Module):
                 iou = bops.box_iou(patch.view(1, -1), region.view(1, -1))
                 if iou > self.min_iou_papyrus:
                     new_img = image.crop((new_x, new_y, new_x + new_width, new_y + new_height))
-                    target['boxes'] = shift_coordinates(target['boxes'], new_x, new_y)
-                    target['boxes'], target['labels'] = validate_boxes(target['boxes'], target['labels'],
-                                                                       new_width, new_height, drop_if_missing=True)
-                    target['regions'] = shift_coordinates(target['regions'], new_x, new_y)
+                    boxes = shift_coordinates(target['boxes'], new_x, new_y)
+                    boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
+                    regions = shift_coordinates(target['regions'], new_x, new_y)
                     min_size = 0.1 * (min(new_width, new_height))
-                    target['regions'], target['region_labels'] = validate_boxes(target['regions'],
-                                                                                target['region_labels'],
-                                                                                new_width, new_height, min_size=min_size)
+                    regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
+                                                            min_size=min_size)
+                    target['boxes'] = boxes
+                    target['labels'] = labels
+                    target['regions'] = regions
+                    target['region_labels'] = region_labels
+                    target['area'] = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+                    target['region_area'] = (regions[:, 3] - regions[:, 1]) * (regions[:, 2] - regions[:, 0])
+                    target['iscrowd'] = torch.zeros((labels.shape[0],), dtype=torch.int64)
                     return new_img, target
 
 
