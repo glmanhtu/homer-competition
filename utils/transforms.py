@@ -145,7 +145,7 @@ class ComputeAvgBoxHeight(nn.Module):
     def forward(self, image, target):
         boxes = target['boxes']
         avg_box_height = (boxes[:, 3] - boxes[:, 1])
-        avg_box_scale = avg_box_height.mean()
+        avg_box_scale = avg_box_height.median()
         target['avg_box_scale'] = avg_box_scale * self.rescale_factor
         return image, target
 
