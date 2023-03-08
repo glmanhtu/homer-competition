@@ -38,11 +38,11 @@ def validate_boxes(boxes, labels, width, height, border_threshold=10, min_size=2
 
     boxes = boxes[torch.logical_not(invalid_boxes)]
     labels = labels[torch.logical_not(invalid_boxes)]
-    if not drop_if_missing:
-        boxes[:, 0][boxes[:, 0] < 0] = 0.
-        boxes[:, 1][boxes[:, 1] < 0] = 0.
-        boxes[:, 2][boxes[:, 2] > width] = float(width)
-        boxes[:, 3][boxes[:, 3] > height] = float(height)
+
+    boxes[:, 0][boxes[:, 0] < 0] = 0.
+    boxes[:, 1][boxes[:, 1] < 0] = 0.
+    boxes[:, 2][boxes[:, 2] > width] = float(width)
+    boxes[:, 3][boxes[:, 3] > height] = float(height)
     invalid_boxes = torch.logical_or(boxes[:, 2] - boxes[:, 0] < min_size, boxes[:, 3] - boxes[:, 1] < min_size)
     boxes = boxes[torch.logical_not(invalid_boxes)]
     labels = labels[torch.logical_not(invalid_boxes)]
