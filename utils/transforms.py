@@ -26,16 +26,20 @@ def shift_coordinates(coordinates, offset_x, offset_y):
     return coordinates
 
 
-def validate_boxes(boxes, width, height, threshold=10):
-    invalid_boxes = torch.logical_or(boxes[:, 0] > width - threshold, boxes[:, 2] < threshold)
-    invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] > height - threshold)
-    invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] < threshold)
+def validate_boxes(boxes, labels, width, height, border_threshold=10, min_size=2.):
+    invalid_boxes = torch.logical_or(boxes[:, 0] > width - border_threshold, boxes[:, 2] < border_threshold)
+    invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] > height - border_threshold)
+    invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] < border_threshold)
     boxes = boxes[torch.logical_not(invalid_boxes)]
+    labels = labels[torch.logical_not(invalid_boxes)]
     boxes[:, 0][boxes[:, 0] < 0] = 0.
     boxes[:, 1][boxes[:, 1] < 0] = 0.
     boxes[:, 2][boxes[:, 2] > width] = float(width)
     boxes[:, 3][boxes[:, 3] > height] = float(height)
-    return boxes
+    invalid_boxes = torch.logical_or(boxes[:, 2] - boxes[:, 0] < min_size, boxes[:, 3] - boxes[:, 1] < min_size)
+    boxes = boxes[torch.logical_not(invalid_boxes)]
+    labels = labels[torch.logical_not(invalid_boxes)]
+    return boxes, labels
 
 
 class RandomCropImage(nn.Module):
@@ -64,9 +68,12 @@ class RandomCropImage(nn.Module):
                 if iou > self.min_iou_papyrus:
                     new_img = image.crop((new_x, new_y, new_x + new_width, new_y + new_height))
                     target['boxes'] = shift_coordinates(target['boxes'], new_x, new_y)
-                    target['boxes'] = validate_boxes(target['boxes'], new_width, new_height)
+                    target['boxes'], target['labels'] = validate_boxes(target['boxes'], target['labels'], new_width, new_height)
                     target['regions'] = shift_coordinates(target['regions'], new_x, new_y)
-                    target['regions'] = validate_boxes(target['regions'], new_width, new_height)
+                    min_size = 0.2 * (min(new_width, new_height))
+                    target['regions'], target['region_labels'] = validate_boxes(target['regions'],
+                                                                                target['region_labels'],
+                                                                                new_width, new_height, min_size=min_size)
                     return new_img, target
 
 
@@ -109,7 +116,7 @@ class FixedImageResize(nn.Module):
             factor = self.max_size / raw_image.width
         raw_image = raw_image.resize((int(raw_image.width * factor), int(raw_image.height * factor)))
         target['boxes'] = target['boxes'] * factor
-        target['avg_box_scale'] = target['avg_box_scale'] * factor / 10
+        target['avg_box_scale'] = target['avg_box_scale'] * factor / 30
         target['regions'] = target['regions'] * factor
         target['region_area'] = target['region_area'] * factor
         target['area'] = target['area'] * factor
