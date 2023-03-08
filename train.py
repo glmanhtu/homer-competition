@@ -112,6 +112,10 @@ class Trainer:
                 print(f'Early stop at epoch {i_epoch}')
                 break
 
+        self.load_pretrained_model()
+        _, log_imgs = self._validate(args.nepochs + 1, self.data_loader_val, log_first_img=False)
+        wandb.log({'val/all_predictions': log_imgs}, step=self._current_step)
+
     def _train_epoch(self, i_epoch):
         self._model.set_train()
         losses = []
@@ -141,7 +145,7 @@ class Trainer:
                 img_features[image_name] = []
             img_features[image_name].append(feature_cpu)
 
-    def _validate(self, i_epoch, val_loader, mode='val'):
+    def _validate(self, i_epoch, val_loader, mode='val', log_first_img=True):
         val_start_time = time.time()
         # set model to eval
         self._model.set_eval()
@@ -160,12 +164,14 @@ class Trainer:
             res = {target["image_id"].item(): output for target, output in zip(region_target, outputs)}
             coco_evaluator.update(res)
 
-            if len(outputs) > 0:
-                img = wb_utils.bounding_boxes(images[0], outputs[0]['boxes'].numpy(),
-                                              outputs[0]['labels'].type(torch.int64).numpy(),
-                                              outputs[0]['scores'].numpy(), outputs[0]['extra_head_pred'],
-                                              target[0]['avg_box_scale'].item())
+            for i in range(len(outputs)):
+                img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
+                                              outputs[i]['labels'].type(torch.int64).numpy(),
+                                              outputs[i]['scores'].numpy(), outputs[i]['extra_head_pred'],
+                                              target[i]['avg_box_scale'].item())
                 logging_imgs.append(img)
+                if log_first_img:
+                    break
 
         coco_evaluator.synchronize_between_processes()
         coco_evaluator.accumulate()
