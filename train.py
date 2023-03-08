@@ -40,7 +40,6 @@ class Trainer:
             RandomCropImage(min_factor=0.3, max_factor=1, min_iou_papyrus=0.2),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
-            ComputeAvgBoxHeight(),
             ImageTransformCompose([
                 torchvision.transforms.RandomGrayscale(p=0.2),
                 torchvision.transforms.RandomApply([
@@ -56,7 +55,6 @@ class Trainer:
         transforms = Compose([
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
-            ComputeAvgBoxHeight(),
             ToTensor()])
         dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
 

@@ -21,7 +21,6 @@ transforms = Compose([
     RandomCropImage(min_factor=0.3, max_factor=1, min_iou_papyrus=0.2),
     PaddingImage(padding_size=50),
     FixedImageResize(args.image_size),
-    ComputeAvgBoxHeight(),
     ImageTransformCompose([
         torchvision.transforms.RandomApply([
             torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)

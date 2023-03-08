@@ -129,6 +129,7 @@ class FixedImageResize(nn.Module):
             factor = self.max_size / raw_image.width
         raw_image = raw_image.resize((int(raw_image.width * factor), int(raw_image.height * factor)))
         target['boxes'] = target['boxes'] * factor
+        target['avg_box_scale'] = target['avg_box_scale'] * factor / 30
         target['regions'] = target['regions'] * factor
         target['region_area'] = target['region_area'] * factor
         target['area'] = target['area'] * factor
