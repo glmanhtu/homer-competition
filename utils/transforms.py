@@ -92,30 +92,37 @@ class RandomLongRectangleCrop(nn.Module):
 
 
 class RandomCropImage(nn.Module):
-    def __init__(self, min_factor, max_factor, min_iou_papyrus=0.2):
+    def __init__(self, min_factor, max_factor, min_iou_papyrus=0.2, max_time_tries=10):
         super().__init__()
         self.min_factor = min_factor
         self.max_factor = max_factor
         self.min_iou_papyrus = min_iou_papyrus
+        self.max_time_tries = max_time_tries
 
-    def forward(self, image, target):
-        while True:
-            factor_width = random.randint(int(self.min_factor * 100), int(self.max_factor * 100)) / 100.
-            factor_height = random.randint(int(self.min_factor * 100), int(self.max_factor * 100)) / 100.
-            new_width, new_height = int(image.width * factor_width), int(image.height * factor_height)
+    def forward(self, image, target, n_times=0):
+        if len(target['regions']) == 0:
+            return image, target
+        factor_width = random.randint(int(self.min_factor * 100), int(self.max_factor * 100)) / 100.
+        factor_height = random.randint(int(self.min_factor * 100), int(self.max_factor * 100)) / 100.
+        new_width, new_height = int(image.width * factor_width), int(image.height * factor_height)
 
-            max_x = image.width - new_width
-            max_y = image.height - new_height
+        max_x = image.width - new_width
+        max_y = image.height - new_height
 
-            # Get a random x and y coordinate within the maximum values
-            new_x = random.randint(0, max_x)
-            new_y = random.randint(0, max_y)
-            patch = torch.tensor([new_x, new_y, new_x + new_width, new_y + new_height]).type(torch.float32)
+        # Get a random x and y coordinate within the maximum values
+        new_x = random.randint(0, max_x)
+        new_y = random.randint(0, max_y)
+        patch = torch.tensor([new_x, new_y, new_x + new_width, new_y + new_height]).type(torch.float32)
 
-            for region in target['regions']:
-                iou = bops.box_iou(patch.view(1, -1), region.view(1, -1))
-                if iou > self.min_iou_papyrus:
-                    return crop_image(image, target, new_x, new_y, new_width, new_height)
+        for region in target['regions']:
+            iou = bops.box_iou(patch.view(1, -1), region.view(1, -1))
+            if iou > self.min_iou_papyrus:
+                return crop_image(image, target, new_x, new_y, new_width, new_height)
+        if n_times > self.max_time_tries:
+            return image, target
+
+        return self.forward(image, target, n_times + 1)
+
 
 
 class PaddingImage(nn.Module):
