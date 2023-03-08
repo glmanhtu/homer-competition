@@ -54,7 +54,7 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     boxes = shift_coordinates(target['boxes'], new_x, new_y)
     boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
     regions = shift_coordinates(target['regions'], new_x, new_y)
-    min_factor = 0.05
+    min_factor = 0.1
     regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
                                             min_w=new_width*min_factor, min_h=new_height*min_factor)
     target['boxes'] = boxes
