@@ -70,7 +70,7 @@ class RandomCropImage(nn.Module):
                     target['boxes'] = shift_coordinates(target['boxes'], new_x, new_y)
                     target['boxes'], target['labels'] = validate_boxes(target['boxes'], target['labels'], new_width, new_height)
                     target['regions'] = shift_coordinates(target['regions'], new_x, new_y)
-                    min_size = 0.2 * (min(new_width, new_height))
+                    min_size = 0.1 * (min(new_width, new_height))
                     target['regions'], target['region_labels'] = validate_boxes(target['regions'],
                                                                                 target['region_labels'],
                                                                                 new_width, new_height, min_size=min_size)
@@ -116,12 +116,25 @@ class FixedImageResize(nn.Module):
             factor = self.max_size / raw_image.width
         raw_image = raw_image.resize((int(raw_image.width * factor), int(raw_image.height * factor)))
         target['boxes'] = target['boxes'] * factor
-        target['avg_box_scale'] = target['avg_box_scale'] * factor / 30
         target['regions'] = target['regions'] * factor
         target['region_area'] = target['region_area'] * factor
         target['area'] = target['area'] * factor
 
         return raw_image, target
+
+
+class ComputeAvgBoxHeight(nn.Module):
+
+    def __init__(self, rescale_factor=1/30):
+        super().__init__()
+        self.rescale_factor = rescale_factor
+
+    def forward(self, image, target):
+        boxes = target['boxes']
+        avg_box_height = (boxes[:, 3] - boxes[:, 1])
+        avg_box_scale = avg_box_height.mean()
+        target['avg_box_scale'] = avg_box_scale * self.rescale_factor
+        return image, target
 
 
 class ImageTransformCompose(nn.Module):

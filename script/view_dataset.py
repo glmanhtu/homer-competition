@@ -8,7 +8,8 @@ import torchvision
 from matplotlib import pyplot as plt, patches
 
 from options.train_options import TrainOptions
-from utils.transforms import Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage
+from utils.transforms import Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
+    ComputeAvgBoxHeight
 
 matplotlib.use('MACOSX')
 from dataset.papyrus import PapyrusDataset
@@ -24,7 +25,8 @@ transforms = Compose([
         ], p=0.5)]),
     RandomCropImage(min_factor=0.3, max_factor=1, min_iou_papyrus=0.2),
     PaddingImage(padding_size=30),
-    FixedImageResize(args.image_size)
+    FixedImageResize(args.image_size),
+    ComputeAvgBoxHeight()
 ])
 
 dataset = PapyrusDataset(args.dataset, transforms, is_training=True)
