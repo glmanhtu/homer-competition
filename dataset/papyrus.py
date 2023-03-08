@@ -4,7 +4,11 @@ import os
 
 import cv2
 import torch
+from PIL import Image, ImageFile
 from torch.utils.data import Dataset
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 
 eval_set = {'P_21215_R_3_001.jpg', 'P_06869_Z_54ff_R_001.jpg', 'P_06869_Z_602ff_R_001.jpg', 'P_Koln_I_38.JPG',
             'P_Oxy_6_949_equal_Graz_Ms._I_1954.jpg', 'G_31936_Pap.jpg', 'Brux_Inv_7188.jpg',
@@ -144,10 +148,9 @@ class PapyrusDataset(Dataset):
         }
         src_folder = os.path.join(self.dataset_path, "images", "homer2")
         fname = os.path.join(src_folder, image_folder, image_file)
-        img = cv2.imread(fname, cv2.IMREAD_COLOR)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        if self.transforms is not None:
-            img, target = self.transforms(img, target)
+        with Image.open(fname) as f:
+            img = f.convert('RGB')
+            if self.transforms is not None:
+                img, target = self.transforms(img, target)
 
         return img, target

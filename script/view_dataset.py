@@ -18,15 +18,14 @@ args = TrainOptions().parse()
 
 
 transforms = Compose([
+    RandomCropImage(min_factor=0.3, max_factor=1, min_iou_papyrus=0.2),
+    PaddingImage(padding_size=50),
+    FixedImageResize(args.image_size),
+    ComputeAvgBoxHeight(),
     ImageTransformCompose([
-        torchvision.transforms.ToPILImage(),
         torchvision.transforms.RandomApply([
             torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
         ], p=0.5)]),
-    RandomCropImage(min_factor=0.3, max_factor=1, min_iou_papyrus=0.2),
-    PaddingImage(padding_size=30),
-    FixedImageResize(args.image_size),
-    ComputeAvgBoxHeight()
 ])
 
 dataset = PapyrusDataset(args.dataset, transforms, is_training=True)
@@ -54,7 +53,7 @@ for image, target in dataset:
     fig = plt.figure(figsize=figsize)
     img_id = target['image_id'].item()
 
-    bboxes = target['regions'].numpy()
+    bboxes = target['boxes'].numpy()
 
     ax = fig.add_axes([0, 0, 1, 1])
 
