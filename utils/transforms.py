@@ -26,16 +26,23 @@ def shift_coordinates(coordinates, offset_x, offset_y):
     return coordinates
 
 
-def validate_boxes(boxes, labels, width, height, border_threshold=10, min_size=2.):
+def validate_boxes(boxes, labels, width, height, border_threshold=10, min_size=2., drop_if_missing=False):
     invalid_boxes = torch.logical_or(boxes[:, 0] > width - border_threshold, boxes[:, 2] < border_threshold)
     invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] > height - border_threshold)
     invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] < border_threshold)
+    if drop_if_missing:
+        invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 0] < 0)
+        invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] < 0)
+        invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 2] > width)
+        invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] > height)
+
     boxes = boxes[torch.logical_not(invalid_boxes)]
     labels = labels[torch.logical_not(invalid_boxes)]
-    boxes[:, 0][boxes[:, 0] < 0] = 0.
-    boxes[:, 1][boxes[:, 1] < 0] = 0.
-    boxes[:, 2][boxes[:, 2] > width] = float(width)
-    boxes[:, 3][boxes[:, 3] > height] = float(height)
+    if not drop_if_missing:
+        boxes[:, 0][boxes[:, 0] < 0] = 0.
+        boxes[:, 1][boxes[:, 1] < 0] = 0.
+        boxes[:, 2][boxes[:, 2] > width] = float(width)
+        boxes[:, 3][boxes[:, 3] > height] = float(height)
     invalid_boxes = torch.logical_or(boxes[:, 2] - boxes[:, 0] < min_size, boxes[:, 3] - boxes[:, 1] < min_size)
     boxes = boxes[torch.logical_not(invalid_boxes)]
     labels = labels[torch.logical_not(invalid_boxes)]
@@ -68,7 +75,8 @@ class RandomCropImage(nn.Module):
                 if iou > self.min_iou_papyrus:
                     new_img = image.crop((new_x, new_y, new_x + new_width, new_y + new_height))
                     target['boxes'] = shift_coordinates(target['boxes'], new_x, new_y)
-                    target['boxes'], target['labels'] = validate_boxes(target['boxes'], target['labels'], new_width, new_height)
+                    target['boxes'], target['labels'] = validate_boxes(target['boxes'], target['labels'],
+                                                                       new_width, new_height, drop_if_missing=True)
                     target['regions'] = shift_coordinates(target['regions'], new_x, new_y)
                     min_size = 0.1 * (min(new_width, new_height))
                     target['regions'], target['region_labels'] = validate_boxes(target['regions'],
