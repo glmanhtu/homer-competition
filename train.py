@@ -38,8 +38,10 @@ class Trainer:
         transforms = Compose([
             ImageTransformCompose([
                 torchvision.transforms.ToPILImage(),
+                torchvision.transforms.RandomGrayscale(p=0.2),
                 torchvision.transforms.RandomApply([
-                    torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
+                    torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5),
+                    torchvision.transforms.GaussianBlur(3, sigma=(1, 2)),
                 ], p=0.5)
             ]),
             RandomCropImage(min_factor=0.3, max_factor=1, min_iou_papyrus=0.2),
