@@ -107,6 +107,8 @@ class BoxAvgSizePredictor(nn.Module):
     def forward(self, region_features, box_proposals):
         prediction = self.net(region_features)
         box_proposals = flatten(box_proposals)
+        if len(box_proposals) == 0:
+            return prediction
         roi_width, roi_height = self.roi_pooling_size
         scales = []
         with torch.no_grad():
