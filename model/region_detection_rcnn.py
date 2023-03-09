@@ -19,7 +19,7 @@ class RegionDetectionRCNN(nn.Module):
         roi_pooler = torchvision.ops.MultiScaleRoIAlign(featmap_names=['0', '1', '2', '3'],
                                                         output_size=7,
                                                         sampling_ratio=2)
-        extra_head = BoxAvgSizeHead(256, roi_pooler, dropout=dropout)
+        extra_head = BoxAvgSizePredictor(dropout)
         self.network = ExtraHeadRCNN(backbone, min_size=img_size, max_size=img_size, num_classes=n_classes,
                                      rpn_anchor_generator=rpn_anchor_generator, box_roi_pool=roi_pooler,
                                      extra_head=extra_head, extra_criterion=BoxSizeCriterion())
@@ -82,15 +82,12 @@ class BoxSizeCriterion(nn.Module):
         self.criterion = nn.MSELoss()
 
     def forward(self, target, pred):
-        prediction = torch.cat(pred, dim=0).view(-1)
-        gt = []
-        for i in range(len(pred)):
-            gt.append(target[i]['avg_box_scale'].repeat(len(pred[i])))
-        return self.criterion(prediction, torch.cat(gt, dim=0).view(-1))
+        gt = torch.stack([x['avg_box_scale'] for x in target]).view(-1, 1)
+        return self.criterion(pred, gt)
 
 
 class BoxAvgSizePredictor(nn.Module):
-    def __init__(self, roi_pooling_size, dropout):
+    def __init__(self, dropout):
         super().__init__()
         self.net = nn.Sequential(
             Mixed6a(),
@@ -102,70 +99,9 @@ class BoxAvgSizePredictor(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(256, 1)
         )
-        self.roi_pooling_size = roi_pooling_size
 
-    def forward(self, region_features, box_proposals):
-        prediction = self.net(region_features)
-        box_proposals = flatten(box_proposals)
-        if len(box_proposals) == 0:
-            return prediction
-        roi_width, roi_height = self.roi_pooling_size
-        scales = []
-        with torch.no_grad():
-            for box in box_proposals:
-                x_min, y_min, x_max, y_max = tuple(box)
-                box_height = y_max - y_min
-                box_scale = 384 / box_height
-                scales.append(box_scale)
-            scales = torch.stack(scales)
-
-        return prediction / scales.view(-1, 1)
-
-
-class BoxAvgSizeHead(nn.Module):
-    def __init__(self, in_channels, roi_pooler, dropout=0.5):
-        super().__init__()
-        self.roi_pooler = roi_pooler
-        self.region_ids = (0, 1)
-        self.region_heads = {}
-        assert in_channels == 256
-        for region in self.region_ids:
-            if region == 0:
-                # We do not work with background region
-                continue
-            net = BoxAvgSizePredictor(roi_pooler.output_size, dropout)
-            self.add_module(f'region_{region}', net)
-            self.region_heads[region] = net
-
-    def forward(self, features, label_proposals, au_box_proposals, image_shapes):
-        region_boxes_mapping = {}
-        foreground_region_id = 1
-
-        # Grouping boxes based on its labels
-        # Extracting features from these boxes
-        for region in self.region_ids:
-            if region == 0:
-                # We do not work with background region
-                continue
-            region_labels, region_boxes, region_img_shapes = [], [], []
-            for spl_labels, spl_boxes, spl_img_shapes in zip(label_proposals, au_box_proposals, image_shapes):
-                region_spl_boxes = spl_boxes[spl_labels == region]
-                region_boxes.append(region_spl_boxes)
-                region_img_shapes.append(spl_img_shapes)
-            region_boxes_mapping[region] = region_boxes, region_img_shapes
-
-        region_features_mapping = {}
-        for region in self.region_ids:
-            if region == 0:
-                # We do not work with background region
-                continue
-            region_boxes, region_img_shapes = region_boxes_mapping[region]
-            region_features = self.roi_pooler(features, region_boxes, region_img_shapes)
-            region_output = self.region_heads[region](region_features, region_boxes)
-            region_output = torch.split_with_sizes(region_output, [len(x) for x in region_boxes])
-            region_features_mapping[region] = region_output
-
-        return region_features_mapping[foreground_region_id]
+    def forward(self, features):
+        return self.net(features['3'])
 
 
 if __name__ == '__main__':

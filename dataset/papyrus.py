@@ -67,7 +67,6 @@ class PapyrusDataset(Dataset):
             self.data = json.load(f)
 
         self.regions = {}
-        img_sizes = {}
         with open(os.path.join(dataset_path, "CompetitionTraining-export.json")) as f:
             regions = json.load(f)['assets']
             for key, region in regions.items():

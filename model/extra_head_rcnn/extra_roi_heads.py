@@ -99,7 +99,7 @@ class ExtraRoiHeads(RoIHeads):
                 pos_matched_idxs.append(matched_idxs[img_id][pos])
         else:
             pos_matched_idxs = None
-        extra_predictions = self.extra_head(features, label_proposals, box_proposals, image_shapes)
+        extra_predictions = self.extra_head(features)
 
         loss_extra_head = {}
         if self.training:
