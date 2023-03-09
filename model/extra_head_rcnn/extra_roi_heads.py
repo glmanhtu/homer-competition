@@ -99,20 +99,20 @@ class ExtraRoiHeads(RoIHeads):
                 pos_matched_idxs.append(matched_idxs[img_id][pos])
         else:
             pos_matched_idxs = None
-        au_predictions = self.extra_head(features, label_proposals, box_proposals, image_shapes)
+        extra_predictions = self.extra_head(features, label_proposals, box_proposals, image_shapes)
 
         loss_extra_head = {}
         if self.training:
             assert targets is not None
             assert pos_matched_idxs is not None
             loss_extra_head = {
-                "loss_extra_head": self.extra_criterion(targets, au_predictions),
+                "loss_extra_head": self.extra_criterion(targets, extra_predictions),
             }
         else:
-            assert au_predictions is not None
+            assert extra_predictions is not None
             assert box_proposals is not None
 
-            for r, ex in zip(result, au_predictions):
+            for r, ex in zip(result, extra_predictions):
                 r['extra_head_pred'] = ex
 
         losses.update(loss_extra_head)

@@ -5,6 +5,7 @@ from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
 from model.extra_head_rcnn.extra_head_rcnn import ExtraHeadRCNN
+from utils.misc import flatten
 
 
 class RegionDetectionRCNN(nn.Module):
@@ -88,6 +89,37 @@ class BoxSizeCriterion(nn.Module):
         return self.criterion(prediction, torch.cat(gt, dim=0).view(-1))
 
 
+class BoxAvgSizePredictor(nn.Module):
+    def __init__(self, roi_pooling_size, dropout):
+        super().__init__()
+        self.net = nn.Sequential(
+            Mixed6a(),
+            nn.AdaptiveMaxPool2d(1),
+            nn.Flatten(),
+            nn.Linear(896, 256, bias=False),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(256, 1)
+        )
+        self.roi_pooling_size = roi_pooling_size
+
+    def forward(self, region_features, box_proposals):
+        prediction = self.net(region_features)
+        box_proposals = flatten(box_proposals)
+        roi_width, roi_height = self.roi_pooling_size
+        scales = []
+        with torch.no_grad():
+            for box in box_proposals:
+                x_min, y_min, x_max, y_max = tuple(box)
+                box_height = y_max - y_min
+                box_scale = roi_height / box_height
+                scales.append(box_scale)
+            scales = torch.stack(scales)
+
+        return prediction / scales.view(-1, 1)
+
+
 class BoxAvgSizeHead(nn.Module):
     def __init__(self, in_channels, roi_pooler, dropout=0.5):
         super().__init__()
@@ -99,16 +131,7 @@ class BoxAvgSizeHead(nn.Module):
             if region == 0:
                 # We do not work with background region
                 continue
-            net = nn.Sequential(
-                Mixed6a(),
-                nn.AdaptiveMaxPool2d(1),
-                nn.Flatten(),
-                nn.Linear(896, 256, bias=False),
-                nn.BatchNorm1d(256),
-                nn.ReLU(),
-                nn.Dropout(dropout),
-                nn.Linear(256, 1)
-            )
+            net = BoxAvgSizePredictor(roi_pooler.output_size, dropout)
             self.add_module(f'region_{region}', net)
             self.region_heads[region] = net
 
@@ -136,7 +159,7 @@ class BoxAvgSizeHead(nn.Module):
                 continue
             region_boxes, region_img_shapes = region_boxes_mapping[region]
             region_features = self.roi_pooler(features, region_boxes, region_img_shapes)
-            region_output = self.region_heads[region](region_features)
+            region_output = self.region_heads[region](region_features, region_boxes)
             region_output = torch.split_with_sizes(region_output, [len(x) for x in region_boxes])
             region_features_mapping[region] = region_output
 

@@ -62,6 +62,10 @@ def convert_region_target(item):
     }
 
 
+def flatten(l):
+    return [item for sublist in l for item in sublist]
+
+
 class MetricLogging:
 
     def __init__(self):
