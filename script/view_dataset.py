@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt, patches
 
 from options.train_options import TrainOptions
 from utils.transforms import Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    ComputeAvgBoxHeight, RandomLongRectangleCrop
+    ComputeAvgBoxHeight, LongRectangleCrop
 
 matplotlib.use('MACOSX')
 from dataset.papyrus import PapyrusDataset
@@ -18,7 +18,7 @@ args = TrainOptions().parse()
 
 
 transforms = Compose([
-    RandomLongRectangleCrop(),
+    LongRectangleCrop(),
     RandomCropImage(min_factor=0.8, max_factor=1, min_iou_papyrus=0.2),
     PaddingImage(padding_size=50),
     FixedImageResize(args.image_size),

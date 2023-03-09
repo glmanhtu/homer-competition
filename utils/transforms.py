@@ -67,23 +67,26 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     return new_img, target
 
 
-class RandomLongRectangleCrop(nn.Module):
+class LongRectangleCrop(nn.Module):
     def __init__(self, split_at=0.6):
         super().__init__()
         self.split_at = split_at
 
     def forward(self, image, target):
+        image_part = target['image_part']
+        if image_part == 0:
+            return image, target
+
         new_height, new_width = image.height, image.width
-        take_first_part = random.choice([0, 1]) == 1
         min_x, min_y = 0, 0
-        if image.height / image.width >= 1.3:
+        if image.height > image.width:
             new_height = int(self.split_at * image.height)
-            if not take_first_part:
+            if image_part == 2:
                 min_x, min_y = 0, image.height - new_height
 
-        elif image.width / image.height >= 1.3:
+        elif image.width > image.height:
             new_width = int(self.split_at * image.width)
-            if not take_first_part:
+            if image_part == 2:
                 min_x, min_y = image.width - new_width, 0
         else:
             return image, target

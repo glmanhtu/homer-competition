@@ -67,6 +67,7 @@ class PapyrusDataset(Dataset):
             self.data = json.load(f)
 
         self.regions = {}
+        img_sizes = {}
         with open(os.path.join(dataset_path, "CompetitionTraining-export.json")) as f:
             regions = json.load(f)['assets']
             for key, region in regions.items():
@@ -74,9 +75,14 @@ class PapyrusDataset(Dataset):
         ids = []
         for i, image in enumerate(self.data['images']):
             if os.path.basename(image['file_name']) in images:
-                ids.append(i)
-        self.imgs = ids
+                if image['height'] / image['width'] >= 1.3 or image['width'] / image['height'] >= 1.3:
+                    # Append part 1 and 2 of the image. See transforms.LongRectangleCrop
+                    ids.append((i, 1))
+                    ids.append((i, 2))
+                else:
+                    ids.append((i, 0))
 
+        self.imgs = ids
         self.annotations = {}
         for annotation in self.data['annotations']:
             self.annotations.setdefault(annotation['image_id'], []).append(annotation)
@@ -87,7 +93,8 @@ class PapyrusDataset(Dataset):
         return len(self.imgs)
 
     def __getitem__(self, idx):
-        image = self.data['images'][self.imgs[idx]]
+        image_path, part = self.imgs[idx]
+        image = self.data['images'][image_path]
         img_url = image['img_url'].split('/')
         image_file = img_url[-1]
         image_folder = img_url[-2]
@@ -146,7 +153,8 @@ class PapyrusDataset(Dataset):
             "region_area": region_area,
             "image_id": image_id,
             "area": area,
-            "iscrowd": iscrowd
+            "iscrowd": iscrowd,
+            "image_part": part
         }
         src_folder = os.path.join(self.dataset_path, "images", "homer2")
         fname = os.path.join(src_folder, image_folder, image_file)
