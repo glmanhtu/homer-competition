@@ -123,7 +123,7 @@ class Trainer:
 
             train_loss = self._model.compute_loss(train_batch)
             self._model.optimise_params(train_loss)
-            losses.append(train_loss.item() + 1)    # negative cosine similarity has range [-1, 1]
+            losses.append(train_loss.item())
 
             # update epoch info
             self._current_step += 1
