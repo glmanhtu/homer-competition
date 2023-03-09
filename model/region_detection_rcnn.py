@@ -115,7 +115,7 @@ class BoxAvgSizePredictor(nn.Module):
             for box in box_proposals:
                 x_min, y_min, x_max, y_max = tuple(box)
                 box_height = y_max - y_min
-                box_scale = roi_height / box_height
+                box_scale = 384 / box_height
                 scales.append(box_scale)
             scales = torch.stack(scales)
 
