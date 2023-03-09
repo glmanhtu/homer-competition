@@ -154,7 +154,7 @@ class PapyrusDataset(Dataset):
             "image_id": image_id,
             "area": area,
             "iscrowd": iscrowd,
-            "image_part": part
+            "image_part": torch.tensor(part, dtype=torch.int64)
         }
         src_folder = os.path.join(self.dataset_path, "images", "homer2")
         fname = os.path.join(src_folder, image_folder, image_file)
