@@ -26,7 +26,7 @@ class ExtraHeadRCNN(GeneralizedRCNN):
                  box_roi_pool=None, box_head=None, box_predictor=None,
                  box_score_thresh=0.7, box_nms_thresh=0.3, box_detections_per_img=100,
                  box_fg_iou_thresh=0.7, box_bg_iou_thresh=0.3,
-                 box_batch_size_per_image=128, box_positive_fraction=0.25,
+                 box_batch_size_per_image=256, box_positive_fraction=0.25,
                  bbox_reg_weights=None,
                  # AU parameters
                  extra_head=None, extra_criterion=None):
