@@ -15,8 +15,10 @@ class RegionDetectionRCNN(nn.Module):
         roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=7, sampling_ratio=2)
         extra_head = BoxAvgSizeHead(256, roi_pool, dropout)
 
+        # We have to set fixed size image since we need to handle the resizing for both boxes and letter_boxes
+        # Todo: overwrite GeneralizedRCNNTransform to resize both boxes and letter_boxes
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
-                                                                               min_size=int(img_size * 2 / 3),
+                                                                               min_size=img_size,
                                                                                max_size=img_size)
         roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads, extra_head, BoxSizeCriterion())
         model.roi_heads = roi_heads_extra
