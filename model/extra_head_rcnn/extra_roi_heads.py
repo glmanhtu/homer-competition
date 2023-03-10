@@ -5,6 +5,22 @@ from torch import Tensor
 from torchvision.models.detection.roi_heads import RoIHeads, fastrcnn_loss
 
 
+def from_origin(roi: RoIHeads, extra_head, extra_criterion):
+    return ExtraRoiHeads(roi.box_roi_pool,
+                         roi.box_head,
+                         roi.box_predictor,
+                         roi.proposal_matcher.high_threshold,
+                         roi.proposal_matcher.low_threshold,
+                         roi.fg_bg_sampler.batch_size_per_image,
+                         roi.fg_bg_sampler.positive_fraction,
+                         roi.box_coder.weights,
+                         roi.score_thresh,
+                         roi.nms_thresh,
+                         roi.detections_per_img,
+                         extra_head,
+                         extra_criterion)
+
+
 class ExtraRoiHeads(RoIHeads):
     def __init__(self, box_roi_pool,
                  box_head,
@@ -82,9 +98,6 @@ class ExtraRoiHeads(RoIHeads):
                     }
                 )
 
-        # AU predictions
-        box_proposals = [p["boxes"] for p in result]
-        label_proposals = [p["labels"] for p in result]
         if self.training:
             # during training, only focus on positive boxes
             num_images = len(proposals)
@@ -110,7 +123,6 @@ class ExtraRoiHeads(RoIHeads):
             }
         else:
             assert extra_predictions is not None
-            assert box_proposals is not None
 
             for r, ex in zip(result, extra_predictions):
                 r['extra_head_pred'] = ex

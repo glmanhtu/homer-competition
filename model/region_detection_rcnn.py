@@ -1,31 +1,23 @@
 import torch
 import torchvision
 from torch import nn
-from torchvision.models.detection.anchor_utils import AnchorGenerator
-from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
-from model.extra_head_rcnn.extra_head_rcnn import ExtraHeadRCNN
-from utils.misc import flatten
+from model.extra_head_rcnn import extra_roi_heads
 
 
 class RegionDetectionRCNN(nn.Module):
 
     def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()
-        anchor_sizes = ((64,), (128,), (256,), (384,), (512,))
-        aspect_ratios = ((0.25, 0.5, 1.0, 1.5, 2.0),) * len(anchor_sizes)
-        rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
-        backbone = resnet_fpn_backbone(arch, pretrained=True, returned_layers=[1, 2, 3, 4])
-        roi_pooler = torchvision.ops.MultiScaleRoIAlign(featmap_names=['0', '1', '2', '3'],
-                                                        output_size=7,
-                                                        sampling_ratio=2)
         extra_head = BoxAvgSizePredictor(dropout)
 
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True, min_size=int(img_size * 2 / 3),
                                                                                max_size=img_size)
+        roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads, extra_head, BoxSizeCriterion())
         in_features = model.roi_heads.box_predictor.cls_score.in_features
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
+        roi_heads_extra.box_predictor = FastRCNNPredictor(in_features, n_classes)
+        model.roi_heads = roi_heads_extra
 
         self.network = model
         self.to(device)
@@ -106,7 +98,7 @@ class BoxAvgSizePredictor(nn.Module):
         )
 
     def forward(self, features):
-        return self.net(features['3'])
+        return self.net(features['pool'])
 
 
 if __name__ == '__main__':
