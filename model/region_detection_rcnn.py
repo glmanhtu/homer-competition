@@ -97,7 +97,7 @@ class BoxSizeCriterion(nn.Module):
             for region_box in box_proposals[i]:
                 l_boxes = filter_boxes(region_box, target[i]['letter_boxes'])
                 if len(l_boxes > 0):
-                    scale = (l_boxes[:, 3] - l_boxes[:, 1]).median() / (region_box[3] - region_box[1])
+                    scale = (l_boxes[:, 3] - l_boxes[:, 1]).mean() / (region_box[3] - region_box[1])
                     gt.append(scale)
                     pred_mask.append(True)
                 else:

@@ -83,7 +83,7 @@ def estimate_letter_scale_performance(v_boxes, letter_boxes, v_scales):
         # get coordinates and labels
         l_boxes = filter_boxes(box, letter_boxes)
         if len(l_boxes) > 0:
-            gt_box_height = (l_boxes[:, 3] - l_boxes[:, 1]).median()
+            gt_box_height = (l_boxes[:, 3] - l_boxes[:, 1]).mean()
             gt.append(gt_box_height)
             pred_box_height = v_scales[b_i] * (box[3] - box[1])
             pred.append(pred_box_height)
