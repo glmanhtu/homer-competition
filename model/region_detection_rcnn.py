@@ -22,8 +22,8 @@ class RegionDetectionRCNN(nn.Module):
                                                         sampling_ratio=2)
         extra_head = BoxAvgSizePredictor(dropout)
 
-        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True, min_size=img_size,
-                                                                               max_size=int(img_size * 1.5))
+        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True, min_size=int(img_size * 2 / 3),
+                                                                               max_size=img_size)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
 
