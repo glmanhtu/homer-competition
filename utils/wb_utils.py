@@ -35,7 +35,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales, letter_box
             "class_id": int(v_labels[b_i]),
             # optionally caption each box with its class and score
             "box_caption": "%s (%.3f), Box (%3.f/%3.f)" % (class_id_to_label[v_labels[b_i]], v_scores[b_i],
-                                                           pred_box_height.item(), gt_box_height.item()),
+                                                           pred_box_height, gt_box_height),
             "domain": "pixel",
             "scores": {"score": float(v_scores[b_i])}}
         all_boxes.append(box_data)
