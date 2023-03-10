@@ -5,7 +5,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRC
 from torchvision.ops import MultiScaleRoIAlign
 
 from model.extra_head_rcnn import extra_roi_heads
-from utils.misc import filter_boxes, compute_area_scale
+from utils.misc import filter_boxes
 
 
 class RegionDetectionRCNN(nn.Module):
@@ -95,7 +95,8 @@ class BoxSizeCriterion(nn.Module):
             for region_box in box_proposals[i]:
                 l_boxes = filter_boxes(region_box, target[i]['letter_boxes'])
                 if len(l_boxes > 0):
-                    gt.append(compute_area_scale(region_box, l_boxes))
+                    scale = (l_boxes[:, 3] - l_boxes[:, 1]).mean() / (region_box[3] - region_box[1])
+                    gt.append(scale)
                     pred_mask.append(True)
                 else:
                     pred_mask.append(False)

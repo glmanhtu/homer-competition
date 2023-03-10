@@ -73,12 +73,6 @@ def filter_boxes(region_box, boxes):
     return boxes[torch.logical_not(invalid_letter_boxes)]
 
 
-def compute_area_scale(region_box, boxes):
-    l_area_boxes = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-    region_area = (region_box[3] - region_box[1]) * (region_box[2] - region_box[0])
-    return l_area_boxes.mean() / region_area
-
-
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
