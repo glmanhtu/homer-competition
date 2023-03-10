@@ -169,7 +169,7 @@ class Trainer:
                 pred, gt = estimate_letter_scale_performance(outputs[i]['boxes'], region_target[i]['letter_boxes'],
                                                              outputs[i]['extra_head_pred'])
                 scale_gt.extend(gt)
-                scale_pred.extend(scale_pred)
+                scale_pred.extend(pred)
 
             for i in range(len(outputs)):
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
