@@ -2,15 +2,18 @@ import torch
 import torchvision
 from torch import nn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_MobileNet_V3_Large_FPN_Weights
+from torchvision.ops import MultiScaleRoIAlign
 
 from model.extra_head_rcnn import extra_roi_heads
+from utils.misc import filter_boxes, compute_area_scale
 
 
 class RegionDetectionRCNN(nn.Module):
 
     def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()
-        extra_head = BoxAvgSizePredictor(dropout)
+        roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=7, sampling_ratio=2)
+        extra_head = BoxAvgSizeHead(256, roi_pool, dropout)
 
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
                                                                                min_size=int(img_size * 2 / 3),
@@ -83,27 +86,78 @@ class BoxSizeCriterion(nn.Module):
         super().__init__()
         self.criterion = nn.MSELoss()
 
-    def forward(self, target, pred):
-        gt = torch.stack([x['avg_box_scale'] for x in target]).view(-1, 1)
-        return self.criterion(pred, gt)
+    def forward(self, target, pred, box_proposals):
+        prediction = torch.cat(pred, dim=0).view(-1)
+
+        gt = []
+        pred_mask = []
+        for i in range(len(pred)):
+            for region_box in box_proposals[i]:
+                l_boxes = filter_boxes(region_box, target[i]['letter_boxes'])
+                if len(l_boxes > 0):
+                    gt.append(compute_area_scale(region_box, l_boxes))
+                    pred_mask.append(True)
+                else:
+                    pred_mask.append(False)
+        pred_mask = torch.tensor(pred_mask, device=prediction.device)
+        prediction = prediction[pred_mask]
+        return self.criterion(prediction, torch.stack(gt, dim=0))
 
 
-class BoxAvgSizePredictor(nn.Module):
-    def __init__(self, dropout):
+class BoxAvgSizeHead(nn.Module):
+    def __init__(self, in_channels, roi_pooler, dropout=0.5):
         super().__init__()
-        self.net = nn.Sequential(
-            Mixed6a(),
-            nn.AdaptiveMaxPool2d(1),
-            nn.Flatten(),
-            nn.Linear(896, 256, bias=False),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(256, 1)
-        )
+        self.roi_pooler = roi_pooler
+        self.region_ids = (0, 1)
+        self.region_heads = {}
+        assert in_channels == 256
+        for region in self.region_ids:
+            if region == 0:
+                # We do not work with background region
+                continue
+            net = nn.Sequential(
+                Mixed6a(),
+                nn.AdaptiveMaxPool2d(1),
+                nn.Flatten(),
+                nn.Linear(896, 256, bias=False),
+                nn.BatchNorm1d(256),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Linear(256, 1)
+            )
+            self.add_module(f'region_{region}', net)
+            self.region_heads[region] = net
 
-    def forward(self, features):
-        return self.net(features['pool'])
+    def forward(self, features, label_proposals, au_box_proposals, image_shapes):
+        region_boxes_mapping = {}
+        foreground_region_id = 1
+
+        # Grouping boxes based on its labels
+        # Extracting features from these boxes
+        for region in self.region_ids:
+            if region == 0:
+                # We do not work with background region
+                continue
+            region_labels, region_boxes, region_img_shapes = [], [], []
+            for spl_labels, spl_boxes, spl_img_shapes in zip(label_proposals, au_box_proposals, image_shapes):
+                region_spl_boxes = spl_boxes[spl_labels == region]
+                region_boxes.append(region_spl_boxes)
+                region_img_shapes.append(spl_img_shapes)
+            region_boxes_mapping[region] = region_boxes, region_img_shapes
+
+        region_features_mapping = {}
+        for region in self.region_ids:
+            if region == 0:
+                # We do not work with background region
+                continue
+            region_boxes, region_img_shapes = region_boxes_mapping[region]
+            region_features = self.roi_pooler(features, region_boxes, region_img_shapes)
+            region_output = self.region_heads[region](region_features)
+
+            region_output = torch.split_with_sizes(region_output, [len(x) for x in region_boxes])
+            region_features_mapping[region] = region_output
+
+        return region_features_mapping[foreground_region_id]
 
 
 if __name__ == '__main__':

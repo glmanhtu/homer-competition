@@ -54,12 +54,29 @@ def collate_fn(batch):
 def convert_region_target(item):
     return {
         'boxes': item['regions'],
+        'letter_boxes': item['boxes'],
         'labels': item['region_labels'],
         'avg_box_scale': item['avg_box_scale'],
         'iscrowd': torch.zeros(item['region_labels'].shape),
         'area': item['region_area'],
         'image_id': item['image_id']
     }
+
+
+def filter_boxes(region_box, boxes):
+    """
+        get only the boxes that are lying inside the region_box
+    """
+    invalid_letter_boxes = torch.logical_or(boxes[:, 0] < region_box[0], boxes[:, 2] > region_box[2])
+    invalid_letter_boxes = torch.logical_or(invalid_letter_boxes, boxes[:, 1] < region_box[1])
+    invalid_letter_boxes = torch.logical_or(invalid_letter_boxes, boxes[:, 3] > region_box[3])
+    return boxes[torch.logical_not(invalid_letter_boxes)]
+
+
+def compute_area_scale(region_box, boxes):
+    l_area_boxes = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+    region_area = (region_box[3] - region_box[1]) * (region_box[2] - region_box[0])
+    return l_area_boxes.mean() / region_area
 
 
 def flatten(l):

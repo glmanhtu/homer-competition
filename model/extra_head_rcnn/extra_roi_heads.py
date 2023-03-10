@@ -98,6 +98,9 @@ class ExtraRoiHeads(RoIHeads):
                     }
                 )
 
+        # AU predictions
+        box_proposals = [p["boxes"] for p in result]
+        label_proposals = [p["labels"] for p in result]
         if self.training:
             # during training, only focus on positive boxes
             num_images = len(proposals)
@@ -112,14 +115,14 @@ class ExtraRoiHeads(RoIHeads):
                 pos_matched_idxs.append(matched_idxs[img_id][pos])
         else:
             pos_matched_idxs = None
-        extra_predictions = self.extra_head(features)
+        extra_predictions = self.extra_head(features, label_proposals, box_proposals, image_shapes)
 
         loss_extra_head = {}
         if self.training:
             assert targets is not None
             assert pos_matched_idxs is not None
             loss_extra_head = {
-                "loss_extra_head": self.extra_criterion(targets, extra_predictions),
+                "loss_extra_head": self.extra_criterion(targets, extra_predictions, box_proposals),
             }
         else:
             assert extra_predictions is not None

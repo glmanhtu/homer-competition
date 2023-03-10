@@ -166,7 +166,9 @@ class Trainer:
             for i in range(len(outputs)):
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                               outputs[i]['labels'].type(torch.int64).numpy(),
-                                              outputs[i]['scores'].numpy())
+                                              outputs[i]['scores'].numpy(),
+                                              outputs[i]['extra_head_pred'],
+                                              region_target[i]['letter_boxes'])
                 logging_imgs.append(img)
                 if log_first_img:
                     break
