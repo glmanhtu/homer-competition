@@ -19,7 +19,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales, letter_box
         # get coordinates and labels
         l_boxes = misc.filter_boxes(box, letter_boxes)
         if len(l_boxes) > 0:
-            gt_box_height = (l_boxes[:, 3] - l_boxes[:, 1]).mean()()
+            gt_box_height = (l_boxes[:, 3] - l_boxes[:, 1]).mean()
         else:
             gt_box_height = 0.
 
