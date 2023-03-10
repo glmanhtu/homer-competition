@@ -12,7 +12,7 @@ class RegionDetectionRCNN(nn.Module):
 
     def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()
-        roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=7, sampling_ratio=2)
+        roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
         extra_head = BoxAvgSizeHead(256, roi_pool, dropout)
 
         # We have to set fixed size image since we need to handle the resizing for both boxes and letter_boxes
@@ -97,7 +97,7 @@ class BoxSizeCriterion(nn.Module):
             for region_box in box_proposals[i]:
                 l_boxes = filter_boxes(region_box, target[i]['letter_boxes'])
                 if len(l_boxes > 0):
-                    scale = (l_boxes[:, 3] - l_boxes[:, 1]).mean() / (region_box[3] - region_box[1])
+                    scale = (l_boxes[:, 3] - l_boxes[:, 1]).median() / (region_box[3] - region_box[1])
                     gt.append(scale)
                     pred_mask.append(True)
                 else:
