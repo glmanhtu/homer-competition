@@ -3,6 +3,7 @@ import torchvision
 from torch import nn
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 from model.extra_head_rcnn.extra_head_rcnn import ExtraHeadRCNN
 from utils.misc import flatten
@@ -20,9 +21,12 @@ class RegionDetectionRCNN(nn.Module):
                                                         output_size=7,
                                                         sampling_ratio=2)
         extra_head = BoxAvgSizePredictor(dropout)
-        self.network = ExtraHeadRCNN(backbone, min_size=img_size, max_size=img_size, num_classes=n_classes,
-                                     rpn_anchor_generator=rpn_anchor_generator, box_roi_pool=roi_pooler,
-                                     extra_head=extra_head, extra_criterion=BoxSizeCriterion())
+
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        in_features = model.roi_heads.box_predictor.cls_score.in_features
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
+
+        self.network = model
         self.to(device)
 
     def forward(self, x, y=None):

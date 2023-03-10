@@ -1,7 +1,3 @@
-import argparse
-import random
-
-import cv2
 import matplotlib
 import numpy as np
 import torchvision
@@ -9,7 +5,7 @@ from matplotlib import pyplot as plt, patches
 
 from options.train_options import TrainOptions
 from utils.transforms import Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    ComputeAvgBoxHeight, LongRectangleCrop
+    LongRectangleCrop
 
 matplotlib.use('MACOSX')
 from dataset.papyrus import PapyrusDataset
