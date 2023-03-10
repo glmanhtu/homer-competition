@@ -77,6 +77,20 @@ def flatten(l):
     return [item for sublist in l for item in sublist]
 
 
+def estimate_letter_scale_performance(v_boxes, letter_boxes, v_scales):
+    pred, gt = [], []
+    for b_i, box in enumerate(v_boxes):
+        # get coordinates and labels
+        l_boxes = filter_boxes(box, letter_boxes)
+        if len(l_boxes) > 0:
+            gt_box_height = (l_boxes[:, 3] - l_boxes[:, 1]).mean()
+            gt.append(gt_box_height)
+            pred_box_height = v_scales[b_i] * (box[3] - box[1])
+            pred.append(pred_box_height)
+
+    return pred, gt
+
+
 class MetricLogging:
 
     def __init__(self):

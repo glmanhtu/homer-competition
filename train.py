@@ -13,7 +13,8 @@ from frcnn.coco_utils import convert_to_coco_api
 from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
-from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, MetricLogging
+from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, MetricLogging, \
+    estimate_letter_scale_performance
 from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
     ComputeAvgBoxHeight, LongRectangleCrop
 
@@ -155,6 +156,7 @@ class Trainer:
         coco_evaluator = CocoEvaluator(coco, iou_types)
 
         logging_imgs = []
+        scale_pred, scale_gt = [], []
         for i_train_batch, batch in enumerate(val_loader):
             images, target = batch
             region_predictions = self._model.forward(images)
@@ -162,6 +164,12 @@ class Trainer:
             region_target = [convert_region_target(x) for x in target]
             res = {target["image_id"].item(): output for target, output in zip(region_target, outputs)}
             coco_evaluator.update(res)
+
+            for i in range(len(outputs)):
+                pred, gt = estimate_letter_scale_performance(outputs[i]['boxes'], region_target[i]['letter_boxes'],
+                                                             outputs[i]['extra_head_pred'])
+                scale_gt.extend(gt)
+                scale_pred.extend(scale_pred)
 
             for i in range(len(outputs)):
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
@@ -178,14 +186,14 @@ class Trainer:
         coco_evaluator.summarize()
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
+        scale_gt, scale_pred = torch.stack(scale_gt), torch.stack(scale_pred)
+        loss_scale = torch.nn.MSELoss()(scale_pred, scale_gt)
 
         val_dict = {
+            f'{mode}/MSE Scale': loss_scale.item(),
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],
-            f'{mode}/mAP_0.5:0.95_small': coco_eval[3],
-            f'{mode}/mAP_0.5:0.95_medium': coco_eval[4],
-            f'{mode}/mAP_0.5:0.95_large': coco_eval[5],
         }
         wandb.log(val_dict, step=self._current_step)
         display_terminal_eval(val_start_time, i_epoch, val_dict)
