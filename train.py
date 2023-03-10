@@ -187,7 +187,7 @@ class Trainer:
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
         scale_gt, scale_pred = torch.stack(scale_gt), torch.stack(scale_pred)
-        loss_scale = torch.nn.MSELoss()(scale_pred, scale_gt)
+        loss_scale = torch.nn.MSELoss()(scale_pred.view(-1), scale_gt.view(-1))
 
         val_dict = {
             f'{mode}/MSE Scale': loss_scale.item(),
