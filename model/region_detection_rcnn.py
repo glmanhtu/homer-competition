@@ -15,11 +15,11 @@ class RegionDetectionRCNN(nn.Module):
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
                                                                                min_size=int(img_size * 2 / 3),
                                                                                max_size=img_size)
-        roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads, extra_head, BoxSizeCriterion())
-        model.roi_heads = roi_heads_extra
-
-        model.load_state_dict(FasterRCNN_MobileNet_V3_Large_FPN_Weights.COCO_V1.get_state_dict(progress=False),
-                              strict=False)
+        # roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads, extra_head, BoxSizeCriterion())
+        # model.roi_heads = roi_heads_extra
+        #
+        # model.load_state_dict(FasterRCNN_MobileNet_V3_Large_FPN_Weights.COCO_V1.get_state_dict(progress=False),
+        #                       strict=False)
 
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
