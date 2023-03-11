@@ -143,16 +143,16 @@ class GenerateHeatmap(nn.Module):
         return image, target
 
     def render_gaussian_heatmap(self, in_shape, out_shape, coord, sigma):
-        x = [i for i in range(out_shape[1])]
-        y = [i for i in range(out_shape[0])]
-        xx, yy = torch.meshgrid([torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)],
-                                indexing='ij')
+        x = torch.arange(out_shape[1]).type(torch.float32)
+        y = torch.arange(out_shape[0]).type(torch.float32)
+        xx, yy = torch.meshgrid([x, y], indexing='ij')
         xx = xx.T.reshape((1, *out_shape, 1))
         yy = yy.T.reshape((1, *out_shape, 1))
         x = torch.floor(coord[:, 0].reshape([1, 1, len(coord)]) / in_shape[1] * out_shape[1] + 0.5)
         y = torch.floor(coord[:, 1].reshape([1, 1, len(coord)]) / in_shape[0] * out_shape[0] + 0.5)
         heatmap = torch.exp(-(((xx - x) / sigma) ** 2.) / 2. - (((yy - y) / sigma) ** 2.) / 2.)
         return heatmap.squeeze().permute((2, 0, 1))
+
 
 class RandomPaddingImage(nn.Module):
     def __init__(self, min_factor=0.05, max_factor=0.3, color=(255, 255, 255)):

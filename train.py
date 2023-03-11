@@ -57,6 +57,7 @@ class Trainer:
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
         transforms = Compose([
             LongRectangleCrop(),
+            GenerateHeatmap(),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
             ToTensor()])
