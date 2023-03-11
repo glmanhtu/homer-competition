@@ -152,14 +152,14 @@ class GenerateHeatmap:
         """
 
         # Create a tensor with zeros and shape [1, height, width]
-        mask_image = torch.zeros((1, image_size[0], image_size[1]), dtype=torch.float)
+        mask_image = torch.zeros((1, image_size[0], image_size[1]), dtype=torch.uint8)
 
         # Draw each bounding box on the image.
         for box in bounding_boxes:
             # Convert box to integers
             box = tuple(map(int, box))
             # Fill the bounding box with ones
-            mask_image[:, box[1]:box[3], box[0]:box[2]] = 1.0
+            mask_image[:, box[1]:box[3], box[0]:box[2]] = 1
 
         return mask_image
 
