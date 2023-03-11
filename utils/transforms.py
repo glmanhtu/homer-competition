@@ -127,11 +127,9 @@ class RandomCropImage(nn.Module):
         return self.forward(image, target, n_times + 1)
 
 
-class GenerateHeatmap(nn.Module):
-    def __init__(self):
-        super().__init__()
+class GenerateHeatmap:
 
-    def forward(self, image, target):
+    def __call__(self, image, target):
         boxes = target['boxes']
         box_centers = torch.zeros((boxes.shape[0], 2))
         sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 5
