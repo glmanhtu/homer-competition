@@ -1,14 +1,14 @@
 from collections import OrderedDict
-
+import torch.nn.functional as F
 import torch
 import torchvision
 from torch import nn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_MobileNet_V3_Large_FPN_Weights
 from torchvision.models.detection.mask_rcnn import MaskRCNNHeads
-from torchvision.ops import MultiScaleRoIAlign, roi_align
+from torchvision.models.detection.roi_heads import project_masks_on_boxes
+from torchvision.ops import MultiScaleRoIAlign
 
 from model.extra_head_rcnn import extra_roi_heads
-from utils.misc import filter_boxes
 
 
 class RegionDetectionRCNN(nn.Module):
@@ -91,19 +91,34 @@ class BoxSizeCriterion(nn.Module):
         super().__init__()
         self.criterion = nn.L1Loss()
 
-    def forward(self, heatmap_preds, box_proposals, target, pos_matched_idxs):
-        preds, gt = [], []
-        for i in range(len(box_proposals)):
-            heatmap_img = target[i]['heatmap']
-            d_size = heatmap_preds[i].shape[-1]
-            matched_idxs = pos_matched_idxs[i].to(box_proposals[i])
-            rois = torch.cat([matched_idxs[:, None], box_proposals[i]], dim=1)
-            gt_heatmap = roi_align(heatmap_img[None][None], rois, (d_size, d_size), 1.0)[:, 0]
-            gt.append(gt_heatmap)
-            preds.append(heatmap_preds[i])
-        preds = torch.cat(preds, dim=0).squeeze(dim=1)
-        gt = torch.cat(gt, dim=0)
-        return self.criterion(preds, gt)
+    def forward(self, heatmap_preds, box_proposals, targets, pos_matched_idxs):
+        gt_masks = [t["heatmap"][None] for t in targets]
+        gt_labels = [t["labels"] for t in targets]
+        loss = self.maskrcnn_loss(heatmap_preds, box_proposals, gt_masks, gt_labels, pos_matched_idxs)
+
+        return loss
+
+    def maskrcnn_loss(self, mask_logits, proposals, gt_masks, gt_labels, mask_matched_idxs):
+
+        discretization_size = mask_logits.shape[-1]
+        labels = [gt_label[idxs] for gt_label, idxs in zip(gt_labels, mask_matched_idxs)]
+        mask_targets = [
+            project_masks_on_boxes(m, p, i, discretization_size) for m, p, i in
+            zip(gt_masks, proposals, mask_matched_idxs)
+        ]
+
+        labels = torch.cat(labels, dim=0)
+        mask_targets = torch.cat(mask_targets, dim=0)
+
+        # torch.mean (in binary_cross_entropy_with_logits) doesn't
+        # accept empty tensors, so handle it separately
+        if mask_targets.numel() == 0:
+            return mask_logits.sum() * 0
+
+        mask_loss = F.binary_cross_entropy_with_logits(
+            mask_logits.squeeze(1), mask_targets
+        )
+        return mask_loss
 
 
 class MaskRCNNPredictor(nn.Sequential):
@@ -135,7 +150,7 @@ class BoxAvgSizeHead(nn.Module):
         mask_features = self.mask_head(mask_features)
         mask_logits = self.mask_predictor(mask_features)
 
-        mask_logits = torch.split_with_sizes(mask_logits, [len(x) for x in box_proposals])
+        # mask_logits = torch.split_with_sizes(mask_logits, [len(x) for x in box_proposals])
         return mask_logits
 
 

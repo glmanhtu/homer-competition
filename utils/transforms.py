@@ -133,15 +133,35 @@ class GenerateHeatmap:
         boxes = target['boxes']
         im_shape = (image.height, image.width)
         if len(boxes) > 0:
-            box_centers = torch.zeros((boxes.shape[0], 2))
-            sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 6
-            box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
-            box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
-            heatmap = self.generate_heatmap(box_centers, sigma, image.width, image.height)
-            target['heatmap'] = heatmap
+            heatmap = self.mask_bounding_boxes(boxes, im_shape)
+            target['heatmap'] = heatmap[0]
         else:
             target['heatmap'] = torch.zeros(im_shape)
         return image, target
+
+    def mask_bounding_boxes(self, bounding_boxes, image_size):
+        """
+        Masks a given image based on a list of bounding boxes.
+
+        Parameters:
+            bounding_boxes (list): A list of tuples representing bounding boxes in the format (x_min, y_min, x_max, y_max).
+            image_size (tuple): A tuple representing the size of the image in the format (height, width).
+
+        Returns:
+            mask_image (torch.Tensor): A masked image with the bounding boxes.
+        """
+
+        # Create a tensor with zeros and shape [1, height, width]
+        mask_image = torch.zeros((1, image_size[0], image_size[1]), dtype=torch.float)
+
+        # Draw each bounding box on the image.
+        for box in bounding_boxes:
+            # Convert box to integers
+            box = tuple(map(int, box))
+            # Fill the bounding box with ones
+            mask_image[:, box[1]:box[3], box[0]:box[2]] = 1.0
+
+        return mask_image
 
     def generate_heatmap(self, points, sigmas, width, height, device='cpu'):
         # Initialize the heatmap tensor
