@@ -133,22 +133,23 @@ class GenerateHeatmap(nn.Module):
 
     def forward(self, image, target):
         boxes = target['boxes']
-        box_centers = torch.zeros((boxes.shape[0], 2)).to(boxes)
+        box_centers = torch.zeros((boxes.shape[0], 2))
         sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 5
         box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
         box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
-        im_shape = image.shape[1:]
+        im_shape = (image.height, image.width)
         heatmap = self.render_gaussian_heatmap(im_shape, im_shape, box_centers, sigma)
-        return torch.sum(heatmap, dim=0)
+        target['heatmap'] = torch.sum(heatmap, dim=0)
+        return image, target
 
     def render_gaussian_heatmap(self, in_shape, out_shape, coord, sigma):
-        x = torch.arange(out_shape[1]).to(coord)
-        y = torch.arange(out_shape[0]).to(coord)
+        x = torch.arange(out_shape[1], dtype=torch.float32)
+        y = torch.arange(out_shape[0], dtype=torch.float32)
         xx, yy = torch.meshgrid([x, y], indexing='ij')
-        xx = xx.T.reshape((1, *out_shape, 1))
-        yy = yy.T.reshape((1, *out_shape, 1))
-        x = torch.floor(coord[:, 0].reshape([1, 1, len(coord)]) / in_shape[1] * out_shape[1] + 0.5)
-        y = torch.floor(coord[:, 1].reshape([1, 1, len(coord)]) / in_shape[0] * out_shape[0] + 0.5)
+        xx = xx.T.view((1, *out_shape)).unsqueeze(-1)
+        yy = yy.T.view((1, *out_shape)).unsqueeze(-1)
+        x = torch.floor(coord[:, 0].view([1, 1, len(coord)]) / in_shape[1] * out_shape[1] + 0.5)
+        y = torch.floor(coord[:, 1].view([1, 1, len(coord)]) / in_shape[0] * out_shape[0] + 0.5)
         heatmap = torch.exp(-(((xx - x) / sigma) ** 2.) / 2. - (((yy - y) / sigma) ** 2.) / 2.)
         return heatmap.squeeze().permute((2, 0, 1))
 

@@ -23,6 +23,7 @@ transforms = Compose([
     RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
     PaddingImage(padding_size=50),
     FixedImageResize(args.image_size),
+    GenerateHeatmap(),
     ImageTransformCompose([
         torchvision.transforms.RandomApply([
             torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
@@ -33,6 +34,7 @@ dataset = PapyrusDataset(args.dataset, transforms, is_training=True)
 
 colour_map = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
               "#C895C5", "#320033", "#FF6832", "#66E1D3", "#CFCDAC", "#D0AC94", "#7ED379", "#012C58"]
+
 
 for image, target in dataset:
     dpi = 80
