@@ -134,9 +134,9 @@ class GenerateHeatmap:
         im_shape = (image.height, image.width)
         if len(boxes) > 0:
             heatmap = self.mask_bounding_boxes(boxes, im_shape)
-            target['heatmap'] = heatmap[0]
+            target['masks'] = heatmap[0]
         else:
-            target['heatmap'] = torch.zeros(im_shape)
+            target['masks'] = torch.zeros(im_shape)
         return image, target
 
     def mask_bounding_boxes(self, bounding_boxes, image_size):
