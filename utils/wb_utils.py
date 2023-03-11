@@ -16,7 +16,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, masks):
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
-        mask = masks[b_i]
+        mask = masks[b_i][0]
         hm = np.uint8(mask.numpy() * 255.)
         masked_img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
         masked_images.append(masked_img)
@@ -35,9 +35,9 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, masks):
             "scores": {"score": float(v_scores[b_i])}}
         all_boxes.append(box_data)
 
-    out_image = 0.5 * raw_image
+    out_image = 0.6 * raw_image
     for img in masked_images:
-        out_image += 0.5 * img
+        out_image += 0.4 * img
 
     out_image = np.uint8(out_image)
     # log to wandb: raw image, predictions, and dictionary of class labels for each class id
