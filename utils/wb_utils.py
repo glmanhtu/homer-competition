@@ -18,9 +18,8 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, masks):
         # get coordinates and labels
         mask = masks[b_i]
         hm = np.uint8(mask.numpy() * 255.)
-        img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
-        masked_img = np.zeros_like(raw_image)
-        masked_img[int(box[1]):int(box[1] + img.shape[1]), int(box[0]):int(box[0] + img.shape[0])] = img
+        masked_img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
+        masked_images.append(masked_img)
 
         box_data = {
             "position": {
