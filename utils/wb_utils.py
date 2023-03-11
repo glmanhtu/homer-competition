@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import torch
 import torchvision.transforms
 import wandb
 
@@ -16,7 +17,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, masks):
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
-        mask = masks[b_i][0]
+        mask = (masks[b_i][0] > 0.5).type(torch.uint8)
         hm = np.uint8(mask.numpy() * 255.)
         masked_img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
         masked_images.append(masked_img)

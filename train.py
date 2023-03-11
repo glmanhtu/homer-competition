@@ -152,7 +152,7 @@ class Trainer:
         cpu_device = torch.device("cpu")
 
         coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
-        iou_types = ["bbox"]
+        iou_types = ["bbox", "segm"]
         coco_evaluator = CocoEvaluator(coco, iou_types)
 
         logging_imgs = []
