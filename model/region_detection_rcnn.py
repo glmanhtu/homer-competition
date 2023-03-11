@@ -85,10 +85,9 @@ class Mixed6a(nn.Module):
 
 
 class BoxSizeCriterion(nn.Module):
-    def __init__(self, ref_scale=0.0786):
+    def __init__(self):
         super().__init__()
         self.criterion = nn.MSELoss()
-        self.ref_scale = ref_scale
 
     def forward(self, heatmap_preds, box_proposals, target, pos_matched_idxs):
         preds, gt = [], []
