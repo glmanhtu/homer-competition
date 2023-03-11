@@ -178,11 +178,16 @@ class Trainer:
         coco_evaluator.summarize()
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
+        coco_eval_segm = coco_evaluator.coco_eval['segm'].stats
 
         val_dict = {
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],
+            f'{mode}/mAP_segm_0.5:0.95': coco_eval_segm[0],
+            f'{mode}/mAP_segm_0.5': coco_eval_segm[1],
+            f'{mode}/mAP_segm_0.75': coco_eval_segm[2],
+
         }
         wandb.log(val_dict, step=self._current_step)
         display_terminal_eval(val_start_time, i_epoch, val_dict)

@@ -52,7 +52,7 @@ def validate_boxes(boxes, labels, width, height, border_threshold=10, min_w=2., 
 def crop_image(image, target, new_x, new_y, new_width, new_height):
     new_img = image.crop((new_x, new_y, new_x + new_width, new_y + new_height))
     boxes = shift_coordinates(target['boxes'], new_x, new_y)
-    boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
+    boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=False)
     regions = shift_coordinates(target['regions'], new_x, new_y)
     min_factor = 0.1
     regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
@@ -153,7 +153,6 @@ class GenerateHeatmap:
 
         # Create a tensor with zeros and shape [1, height, width]
         mask_image = torch.zeros((1, image_size[0], image_size[1]), dtype=torch.uint8)
-
         # Draw each bounding box on the image.
         for box in bounding_boxes:
             # Convert box to integers

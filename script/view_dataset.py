@@ -60,7 +60,7 @@ for image, target in dataset:
     # Hide spines, ticks, etc.
     ax.axis('off')
 
-    hm = np.uint8(target['heatmap'].numpy() * 255.)
+    hm = np.uint8(target['masks'].numpy() * 255.)
     img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
     img = np.uint8(0.5 * img + 0.5 * image)
 
