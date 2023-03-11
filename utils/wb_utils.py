@@ -10,7 +10,7 @@ display_ids = {"Fragment": 1}
 class_id_to_label = {int(v): k for k, v in display_ids.items()}
 
 
-def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales, letter_boxes):
+def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales, letter_boxes, ref_scale=0.0786):
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
     all_boxes = []
@@ -23,7 +23,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales, letter_box
         else:
             gt_box_height = 0.
 
-        pred_box_height = v_scales[b_i] * (box[3] - box[1])
+        pred_box_height = v_scales[b_i] * (box[3] - box[1]) * ref_scale
 
         box_data = {
             "position": {

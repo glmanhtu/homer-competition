@@ -84,9 +84,10 @@ class Mixed6a(nn.Module):
 
 
 class BoxSizeCriterion(nn.Module):
-    def __init__(self):
+    def __init__(self, ref_scale=0.0786):
         super().__init__()
         self.criterion = nn.MSELoss()
+        self.ref_scale = ref_scale
 
     def forward(self, target, pred, box_proposals):
         prediction = torch.cat(pred, dim=0).view(-1)
@@ -98,7 +99,7 @@ class BoxSizeCriterion(nn.Module):
                 l_boxes = filter_boxes(region_box, target[i]['letter_boxes'])
                 if len(l_boxes > 0):
                     scale = (l_boxes[:, 3] - l_boxes[:, 1]).mean() / (region_box[3] - region_box[1])
-                    gt.append(scale)
+                    gt.append(scale / self.ref_scale)
                     pred_mask.append(True)
                 else:
                     pred_mask.append(False)

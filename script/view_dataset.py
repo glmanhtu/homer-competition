@@ -1,9 +1,13 @@
+import random
+
 import matplotlib
 import numpy as np
+import torch
 import torchvision
 from matplotlib import pyplot as plt, patches
 
 from options.train_options import TrainOptions
+from utils import misc
 from utils.transforms import Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
     LongRectangleCrop
 
@@ -49,7 +53,7 @@ for image, target in dataset:
     fig = plt.figure(figsize=figsize)
     img_id = target['image_id'].item()
 
-    bboxes = target['regions'].numpy()
+    region_bboxes = target['regions']
 
     ax = fig.add_axes([0, 0, 1, 1])
 
@@ -59,10 +63,15 @@ for image, target in dataset:
     # Display the image.
     ax.imshow(image, cmap='gray')
 
-    for i, bbox in enumerate(bboxes):
-        c = 'red'
-        x_min, y_min, x_max, y_max = bbox
-        rect = patches.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=1, edgecolor=c, facecolor='none')
-        ax.add_patch(rect)
+    for region_bbox in region_bboxes:
+
+        bboxes = misc.filter_boxes(region_bbox, target['boxes'])
+        bboxes = torch.cat([bboxes, region_bbox.view(1, -1)], dim=0)
+
+        c = random.choice(colour_map)
+        for i, bbox in enumerate(bboxes):
+            x_min, y_min, x_max, y_max = bbox
+            rect = patches.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=1, edgecolor=c, facecolor='none')
+            ax.add_patch(rect)
 
     plt.show()
