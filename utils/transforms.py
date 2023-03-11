@@ -145,7 +145,8 @@ class GenerateHeatmap(nn.Module):
     def render_gaussian_heatmap(self, in_shape, out_shape, coord, sigma):
         x = [i for i in range(out_shape[1])]
         y = [i for i in range(out_shape[0])]
-        xx, yy = torch.meshgrid([torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)])
+        xx, yy = torch.meshgrid([torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)],
+                                indexing='ij')
         xx = xx.T.reshape((1, *out_shape, 1))
         yy = yy.T.reshape((1, *out_shape, 1))
         x = torch.floor(coord[:, 0].reshape([1, 1, len(coord)]) / in_shape[1] * out_shape[1] + 0.5)
