@@ -156,7 +156,7 @@ class PapyrusDataset(Dataset):
         fname = os.path.join(src_folder, image_folder, image_file)
         with Image.open(fname) as f:
             img = f.convert('RGB')
-            if self.transforms is not None:
-                img, target = self.transforms(img, target)
+        if self.transforms is not None:
+            img, target = self.transforms(img, target)
 
         return img, target

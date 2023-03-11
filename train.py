@@ -14,7 +14,7 @@ from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, MetricLogging, \
-    estimate_letter_scale_performance
+    estimate_letter_scale_performance, LossLoging
 from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
     ComputeAvgBoxHeight, LongRectangleCrop, GenerateHeatmap
 
@@ -120,21 +120,19 @@ class Trainer:
 
     def _train_epoch(self, i_epoch):
         self._model.set_train()
-        losses = []
+        losses = LossLoging()
         for i_train_batch, train_batch in enumerate(self.data_loader_train):
             iter_start_time = time.time()
 
             train_loss = self._model.compute_loss(train_batch)
             self._model.optimise_params(train_loss)
-            losses.append(train_loss.item())
+            losses.update(train_loss)
 
             # update epoch info
             self._current_step += 1
 
             if self._current_step % args.save_freq_iter == 0:
-                save_dict = {
-                    'train/loss': sum(losses) / len(losses),
-                }
+                save_dict = losses.get_report()
                 losses.clear()
                 wandb.log(save_dict, step=self._current_step)
                 display_terminal(iter_start_time, i_epoch, i_train_batch, len(self.data_loader_train), save_dict)

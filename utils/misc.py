@@ -91,6 +91,25 @@ def estimate_letter_scale_performance(v_boxes, letter_boxes, v_scales, ref_scale
     return pred, gt
 
 
+class LossLoging:
+
+    def __init__(self):
+        self.losses = {}
+
+    def update(self, all_losses):
+        for key in all_losses.keys():
+            self.losses.setdefault(key, []).append(all_losses[key].item())
+
+    def get_report(self):
+        result = {}
+        for key in self.losses:
+            result[key] = sum(self.losses[key]) / len(self.losses[key])
+        return result
+
+    def clear(self):
+        self.losses = {}
+
+
 class MetricLogging:
 
     def __init__(self):

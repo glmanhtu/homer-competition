@@ -134,7 +134,7 @@ class GenerateHeatmap:
         im_shape = (image.height, image.width)
         if len(boxes) > 0:
             box_centers = torch.zeros((boxes.shape[0], 2))
-            sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 5
+            sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 6
             box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
             box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
             heatmap = self.render_gaussian_heatmap(im_shape, im_shape, box_centers, sigma)
