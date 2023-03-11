@@ -1,8 +1,10 @@
+from collections import OrderedDict
+
 import torch
 import torchvision
 from torch import nn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_MobileNet_V3_Large_FPN_Weights
-from torchvision.models.detection.mask_rcnn import MaskRCNNHeads, MaskRCNNPredictor
+from torchvision.models.detection.mask_rcnn import MaskRCNNHeads
 from torchvision.ops import MultiScaleRoIAlign, roi_align
 
 from model.extra_head_rcnn import extra_roi_heads
@@ -102,6 +104,19 @@ class BoxSizeCriterion(nn.Module):
         preds = torch.cat(preds, dim=0).squeeze(dim=1)
         gt = torch.cat(gt, dim=0)
         return self.criterion(preds, gt)
+
+
+class MaskRCNNPredictor(nn.Sequential):
+    def __init__(self, in_channels, dim_reduced, num_classes):
+        super().__init__(
+            OrderedDict(
+                [
+                    ("conv5_mask", nn.ConvTranspose2d(in_channels, dim_reduced, 2, 2, 0)),
+                    ("relu", nn.ReLU(inplace=True)),
+                    ("mask_fcn_logits", nn.Conv2d(dim_reduced, num_classes, 1, 1, 0)),
+                ]
+            )
+        )
 
 
 class BoxAvgSizeHead(nn.Module):
