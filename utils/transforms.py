@@ -133,7 +133,7 @@ class GenerateHeatmap(nn.Module):
 
     def forward(self, image, target):
         boxes = target['boxes']
-        box_centers = torch.zeros((boxes.shape[0], 2))
+        box_centers = torch.zeros((boxes.shape[0], 2)).to(boxes)
         sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 5
         box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
         box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
@@ -142,8 +142,8 @@ class GenerateHeatmap(nn.Module):
         return torch.sum(heatmap, dim=0)
 
     def render_gaussian_heatmap(self, in_shape, out_shape, coord, sigma):
-        x = torch.arange(out_shape[1])
-        y = torch.arange(out_shape[0])
+        x = torch.arange(out_shape[1]).to(coord)
+        y = torch.arange(out_shape[0]).to(coord)
         xx, yy = torch.meshgrid([x, y], indexing='ij')
         xx = xx.T.reshape((1, *out_shape, 1))
         yy = yy.T.reshape((1, *out_shape, 1))
