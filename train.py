@@ -16,7 +16,7 @@ from utils import misc, wb_utils
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, MetricLogging, \
     estimate_letter_scale_performance
 from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    ComputeAvgBoxHeight, LongRectangleCrop
+    ComputeAvgBoxHeight, LongRectangleCrop, GenerateHeatmap
 
 args = TrainOptions().parse()
 
@@ -42,6 +42,7 @@ class Trainer:
             RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
+            GenerateHeatmap(),
             ImageTransformCompose([
                 torchvision.transforms.RandomGrayscale(p=0.2),
                 torchvision.transforms.RandomApply([
@@ -156,7 +157,6 @@ class Trainer:
         coco_evaluator = CocoEvaluator(coco, iou_types)
 
         logging_imgs = []
-        scale_pred, scale_gt = [], []
         for i_train_batch, batch in enumerate(val_loader):
             images, target = batch
             region_predictions = self._model.forward(images)
@@ -166,17 +166,10 @@ class Trainer:
             coco_evaluator.update(res)
 
             for i in range(len(outputs)):
-                pred, gt = estimate_letter_scale_performance(outputs[i]['boxes'], region_target[i]['letter_boxes'],
-                                                             outputs[i]['extra_head_pred'])
-                scale_gt.extend(gt)
-                scale_pred.extend(pred)
-
-            for i in range(len(outputs)):
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                               outputs[i]['labels'].type(torch.int64).numpy(),
                                               outputs[i]['scores'].numpy(),
-                                              outputs[i]['extra_head_pred'],
-                                              region_target[i]['letter_boxes'])
+                                              outputs[i]['masks'])
                 logging_imgs.append(img)
                 if log_first_img:
                     break
@@ -186,11 +179,8 @@ class Trainer:
         coco_evaluator.summarize()
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
-        scale_gt, scale_pred = torch.stack(scale_gt), torch.stack(scale_pred)
-        loss_scale = torch.nn.MSELoss()(scale_pred.view(-1), scale_gt.view(-1))
 
         val_dict = {
-            f'{mode}/MSE Scale': loss_scale.item(),
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],

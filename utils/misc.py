@@ -56,7 +56,7 @@ def convert_region_target(item):
         'boxes': item['regions'],
         'letter_boxes': item['boxes'],
         'labels': item['region_labels'],
-        'avg_box_scale': item['avg_box_scale'],
+        'heatmap': item['heatmap'],
         'iscrowd': torch.zeros(item['region_labels'].shape),
         'area': item['region_area'],
         'image_id': item['image_id']

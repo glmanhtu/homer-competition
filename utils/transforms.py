@@ -127,6 +127,32 @@ class RandomCropImage(nn.Module):
         return self.forward(image, target, n_times + 1)
 
 
+class GenerateHeatmap(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, image, target):
+        boxes = target['boxes']
+        box_centers = torch.zeros((boxes.shape[0], 2))
+        sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 5
+        box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
+        box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
+        im_shape = (image.height, image.width)
+        heatmap = self.render_gaussian_heatmap(im_shape, im_shape, box_centers, sigma)
+        target['heatmap'] = torch.sum(heatmap, dim=0)
+        return image, target
+
+    def render_gaussian_heatmap(self, in_shape, out_shape, coord, sigma):
+        x = [i for i in range(out_shape[1])]
+        y = [i for i in range(out_shape[0])]
+        xx, yy = torch.meshgrid([torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)])
+        xx = xx.T.reshape((1, *out_shape, 1))
+        yy = yy.T.reshape((1, *out_shape, 1))
+        x = torch.floor(coord[:, 0].reshape([1, 1, len(coord)]) / in_shape[1] * out_shape[1] + 0.5)
+        y = torch.floor(coord[:, 1].reshape([1, 1, len(coord)]) / in_shape[0] * out_shape[0] + 0.5)
+        heatmap = torch.exp(-(((xx - x) / sigma) ** 2.) / 2. - (((yy - y) / sigma) ** 2.) / 2.)
+        return heatmap.squeeze().permute((2, 0, 1))
+
 class RandomPaddingImage(nn.Module):
     def __init__(self, min_factor=0.05, max_factor=0.3, color=(255, 255, 255)):
         super().__init__()
@@ -196,7 +222,6 @@ class FixedImageResize(nn.Module):
             factor = self.max_size / raw_image.width
         raw_image = raw_image.resize((int(raw_image.width * factor), int(raw_image.height * factor)))
         target['boxes'] = target['boxes'] * factor
-        target['avg_box_scale'] = target['avg_box_scale'] * factor / 30
         target['regions'] = target['regions'] * factor
         target['region_area'] = target['region_area'] * factor
         target['area'] = target['area'] * factor

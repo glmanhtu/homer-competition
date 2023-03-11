@@ -1,5 +1,6 @@
 import random
 
+import cv2
 import matplotlib
 import numpy as np
 import torch
@@ -9,7 +10,7 @@ from matplotlib import pyplot as plt, patches
 from options.train_options import TrainOptions
 from utils import misc
 from utils.transforms import Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    LongRectangleCrop
+    LongRectangleCrop, GenerateHeatmap
 
 matplotlib.use('MACOSX')
 from dataset.papyrus import PapyrusDataset
@@ -22,6 +23,7 @@ transforms = Compose([
     RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
     PaddingImage(padding_size=50),
     FixedImageResize(args.image_size),
+    GenerateHeatmap(),
     ImageTransformCompose([
         torchvision.transforms.RandomApply([
             torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
@@ -37,8 +39,6 @@ colour_map = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", 
 for image, target in dataset:
     dpi = 80
 
-    scale = target['avg_box_scale'].item()
-    print(scale)
     image = np.asarray(image)
 
     # origin_w, origin_h, _ = image.shape
@@ -60,18 +60,22 @@ for image, target in dataset:
     # Hide spines, ticks, etc.
     ax.axis('off')
 
+    hm = np.uint8(target['heatmap'].numpy() * 255.)
+    img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
+    img = np.uint8(0.5 * img + 0.5 * image)
+
     # Display the image.
-    ax.imshow(image, cmap='gray')
+    ax.imshow(img, cmap='gray')
 
-    for region_bbox in region_bboxes:
-
-        bboxes = misc.filter_boxes(region_bbox, target['boxes'])
-        bboxes = torch.cat([bboxes, region_bbox.view(1, -1)], dim=0)
-
-        c = random.choice(colour_map)
-        for i, bbox in enumerate(bboxes):
-            x_min, y_min, x_max, y_max = bbox
-            rect = patches.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=1, edgecolor=c, facecolor='none')
-            ax.add_patch(rect)
+    # for region_bbox in region_bboxes:
+    #
+    #     bboxes = misc.filter_boxes(region_bbox, target['boxes'])
+    #     bboxes = torch.cat([bboxes, region_bbox.view(1, -1)], dim=0)
+    #
+    #     c = random.choice(colour_map)
+    #     for i, bbox in enumerate(bboxes):
+    #         x_min, y_min, x_max, y_max = bbox
+    #         rect = patches.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=1, edgecolor=c, facecolor='none')
+    #         ax.add_patch(rect)
 
     plt.show()

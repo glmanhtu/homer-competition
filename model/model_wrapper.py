@@ -120,10 +120,8 @@ class ModelWrapper:
             losses = self._model(images, region_target)
             all_losses.update(losses)
 
-        loss_extra_head = all_losses['loss_extra_head']
-        del all_losses['loss_extra_head']
         detection_loss = sum(all_losses.values()) / len(all_losses)
-        return (detection_loss + loss_extra_head) / 2
+        return detection_loss
 
     def optimise_params(self, loss):
         self._optimizer.zero_grad()

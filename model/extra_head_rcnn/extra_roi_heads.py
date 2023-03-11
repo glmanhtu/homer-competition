@@ -100,35 +100,32 @@ class ExtraRoiHeads(RoIHeads):
 
         # AU predictions
         box_proposals = [p["boxes"] for p in result]
-        label_proposals = [p["labels"] for p in result]
         if self.training:
             # during training, only focus on positive boxes
             num_images = len(proposals)
             box_proposals = []
-            label_proposals = []
             pos_matched_idxs = []
             assert matched_idxs is not None
             for img_id in range(num_images):
                 pos = torch.where(labels[img_id] > 0)[0]
                 box_proposals.append(proposals[img_id][pos])
-                label_proposals.append(labels[img_id][pos])
                 pos_matched_idxs.append(matched_idxs[img_id][pos])
         else:
             pos_matched_idxs = None
-        extra_predictions = self.extra_head(features, label_proposals, box_proposals, image_shapes)
+        extra_predictions = self.extra_head(features, box_proposals, image_shapes)
 
         loss_extra_head = {}
         if self.training:
-            assert targets is not None
-            assert pos_matched_idxs is not None
+            if targets is None or pos_matched_idxs is None or extra_predictions is None:
+                raise ValueError("targets, pos_matched_idxs, extra_predictions cannot be None when training")
             loss_extra_head = {
-                "loss_extra_head": self.extra_criterion(targets, extra_predictions, box_proposals),
+                "loss_extra_head": self.extra_criterion(extra_predictions, box_proposals, targets, pos_matched_idxs),
             }
         else:
             assert extra_predictions is not None
 
             for r, ex in zip(result, extra_predictions):
-                r['extra_head_pred'] = ex
+                r['masks'] = ex     # Hack: reuse the post-process func defined in GeneralizedRCNNTransform
 
         losses.update(loss_extra_head)
 
