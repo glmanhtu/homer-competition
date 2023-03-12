@@ -137,17 +137,16 @@ class GenerateHeatmap:
 
     def __call__(self, image, target):
         boxes = target['boxes']
-        im_shape = (image.height, image.width)
+        im_shape = image.shape[1:]
         if len(boxes) > 0:
             box_centers = torch.zeros((boxes.shape[0], 2))
             sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 6
             box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
             box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
-            heatmap = self.generate_heatmap(box_centers, sigma, image.width, image.height, device=self.device)
+            heatmap = self.generate_heatmap(box_centers, sigma, im_shape[1], im_shape[0], device=self.device)
         else:
             heatmap = torch.zeros(im_shape)
-        target['masks'] = heatmap.expand(len(target['region_labels']), *heatmap.shape)
-        return image, target
+        return heatmap.expand(len(target['region_labels']), *heatmap.shape)
 
     def mask_bounding_boxes(self, bounding_boxes, image_size):
         """

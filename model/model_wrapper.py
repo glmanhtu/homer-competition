@@ -6,6 +6,7 @@ from torch import nn
 
 from criterions.optim import Optimizer, Scheduler
 from utils.misc import map_location, convert_region_target
+from utils.transforms import GenerateHeatmap
 
 
 class ModelWrapper:
@@ -109,14 +110,17 @@ class ModelWrapper:
             return self._model(images)
 
     def compute_loss(self, batch_data):
-        images, target = batch_data
+        images, targets = batch_data
+        heatmap_generator = GenerateHeatmap(self._device)
         images = [x.to(self._device, non_blocking=True) for x in images]
-        target = [{k: v.to(self._device, non_blocking=True) for k, v in t.items()} for t in target]
+        targets = [{k: v.to(self._device, non_blocking=True) for k, v in t.items()} for t in targets]
+        for image, target in zip(images, targets):
+            target['masks'] = heatmap_generator(image, target)
 
         all_losses = {}
         with torch.set_grad_enabled(self._is_train):
             # Stage 1
-            region_target = [convert_region_target(x) for x in target]
+            region_target = [convert_region_target(x) for x in targets]
             losses = self._model(images, region_target)
             all_losses.update(losses)
 

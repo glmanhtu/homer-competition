@@ -42,7 +42,6 @@ class Trainer:
             RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
-            GenerateHeatmap(device),
             ImageTransformCompose([
                 torchvision.transforms.RandomGrayscale(p=0.2),
                 torchvision.transforms.RandomApply([
@@ -59,7 +58,6 @@ class Trainer:
             LongRectangleCrop(),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
-            GenerateHeatmap(device),
             ToTensor()])
         dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
 
