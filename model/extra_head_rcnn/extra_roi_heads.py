@@ -56,7 +56,7 @@ def maskrcnn_inference(x, labels):
         results (list[BoxList]): one BoxList for each image, containing
             the extra field mask
     """
-    heatmap = (x * 255).type(torch.uint8)
+    heatmap = x
 
     # select masks corresponding to the predicted classes
     num_masks = x.shape[0]
