@@ -124,6 +124,9 @@ class ModelWrapper:
 
     def optimise_params(self, all_losses):
         self._optimizer.zero_grad()
-        loss = sum(all_losses.values()) / len(all_losses)
+        loss_mask = all_losses['loss_mask']
+        del all_losses['loss_mask']
+        loss_detection = sum(all_losses.values()) / len(all_losses)
+        loss = (loss_detection + loss_mask) / 2
         loss.backward()
         self._optimizer.step()
