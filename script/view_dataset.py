@@ -59,11 +59,10 @@ for image, target in dataset:
 
     # Hide spines, ticks, etc.
     ax.axis('off')
-    img = 0.6 * image
-    for mask in target['masks'].numpy():
-        hm = np.uint8(mask * 255.)
-        hm = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
-        img = np.uint8(img + 0.4 * hm)
+    
+    hm = np.uint8(target['masks'].numpy() * 255.)
+    img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
+    img = np.uint8(0.5 * img + 0.5 * image)
 
     # Display the image.
     ax.imshow(img, cmap='gray')

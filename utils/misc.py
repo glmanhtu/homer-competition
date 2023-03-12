@@ -56,7 +56,7 @@ def convert_region_target(item):
         'boxes': item['regions'],
         'letter_boxes': item['boxes'],
         'labels': item['region_labels'],
-        'masks': item['masks'],
+        'masks': item['masks'].expand(len(item['region_labels']), *item['masks'].shape),
         'iscrowd': torch.zeros(item['region_labels'].shape),
         'area': item['region_area'],
         'image_id': item['image_id']
