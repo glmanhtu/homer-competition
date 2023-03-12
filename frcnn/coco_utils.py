@@ -143,7 +143,7 @@ def _coco_remove_images_without_annotations(dataset, cat_list=None):
     return dataset
 
 
-def convert_to_coco_api(ds, target_transform=None):
+def convert_to_coco_api(ds, target_transform=None, compute_mask=None):
     coco_ds = COCO()
     # annotation IDs need to start at 1, not 0, see torchvision issue #1530
     ann_id = 1
@@ -155,6 +155,8 @@ def convert_to_coco_api(ds, target_transform=None):
         img, targets = ds[img_idx]
         if target_transform:
             targets = target_transform(targets)
+        if compute_mask:
+            targets['masks'] = compute_mask(img, targets).cpu()
         image_id = targets["image_id"].item()
         img_dict = {}
         img_dict["id"] = image_id

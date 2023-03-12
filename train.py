@@ -149,11 +149,11 @@ class Trainer:
         # set model to eval
         self._model.set_eval()
         cpu_device = torch.device("cpu")
+        heatmap_generator = GenerateHeatmap(self._device)
 
-        coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
+        coco = convert_to_coco_api(val_loader.dataset, convert_region_target, heatmap_generator)
         iou_types = ["bbox", "segm"]
         coco_evaluator = CocoEvaluator(coco, iou_types)
-        heatmap_generator = GenerateHeatmap(self._device)
 
         logging_imgs = []
         for i_train_batch, batch in enumerate(val_loader):
