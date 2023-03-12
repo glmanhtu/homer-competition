@@ -135,12 +135,18 @@ class GenerateHeatmap:
     def __call__(self, image, target):
         boxes = target['boxes']
         im_shape = (image.height, image.width)
-        if len(boxes) > 0:
-            heatmap = self.mask_bounding_boxes(boxes, im_shape)
-            target['masks'] = heatmap[0]
-        else:
-            target['masks'] = torch.zeros(im_shape)
+        masks = []
+        for region_box in target['regions']:
+            boxes_in_region = filter_boxes(region_box, boxes)
+            if len(boxes_in_region) > 0:
+                heatmap = self.mask_bounding_boxes(boxes_in_region, im_shape)
+                masks.append(heatmap[0])
+            else:
+                masks.append(torch.zeros(im_shape))
+        if len(masks) == 0:
+            raise NoGTBoundingBox()
 
+        target['masks'] = torch.stack(masks).type(torch.uint8)
         return image, target
 
     def mask_bounding_boxes(self, bounding_boxes, image_size):
