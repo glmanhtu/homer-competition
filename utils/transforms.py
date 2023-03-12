@@ -146,7 +146,7 @@ class GenerateHeatmap:
         if len(masks) == 0:
             raise NoGTBoundingBox()
 
-        target['masks'] = torch.stack(masks)
+        target['masks'] = torch.stack(masks).type(torch.uint8)
         return image, target
 
     def mask_bounding_boxes(self, bounding_boxes, image_size):
