@@ -19,7 +19,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, masks):
         # get coordinates and labels
         hm = masks[b_i][0].numpy() / 5.
         hm[hm > 1] = 1
-        hm[hm < 0.5] = 0
+        hm[hm < 0.3] = 0
         hm = np.uint8(hm * 255.)
         masked_img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
         masked_images.append(masked_img)
