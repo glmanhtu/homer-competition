@@ -37,8 +37,6 @@ colour_map = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", 
 for image, target in dataset:
     dpi = 80
 
-    scale = target['avg_box_scale'].item()
-    print(scale)
     image = np.asarray(image)
 
     # origin_w, origin_h, _ = image.shape

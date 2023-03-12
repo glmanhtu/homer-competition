@@ -92,6 +92,9 @@ class PapyrusDataset(Dataset):
         return len(self.imgs)
 
     def __getitem__(self, idx):
+        return self.__get_item_by_idx(idx)
+
+    def __get_item_by_idx(self, idx):
         image_path, part = self.imgs[idx]
         image = self.data['images'][image_path]
         img_url = image['img_url'].split('/')
@@ -128,8 +131,6 @@ class PapyrusDataset(Dataset):
 
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        avg_box_height = (boxes[:, 3] - boxes[:, 1])
-        avg_box_scale = avg_box_height.median()
 
         # there is only one class
         labels = torch.as_tensor(labels, dtype=torch.int64)
@@ -145,7 +146,6 @@ class PapyrusDataset(Dataset):
 
         target = {
             "boxes": boxes,
-            "avg_box_scale": avg_box_scale,
             "labels": labels,
             "regions": regions,
             "region_labels": region_labels,
