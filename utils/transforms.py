@@ -7,6 +7,7 @@ from PIL import Image
 from torch import nn
 import torchvision.ops.boxes as bops
 
+from utils.exceptions import NoGTBoundingBox
 from utils.misc import filter_boxes
 
 
@@ -142,6 +143,8 @@ class GenerateHeatmap:
                 masks.append(heatmap[0])
             else:
                 masks.append(torch.zeros(im_shape))
+        if len(masks) == 0:
+            raise NoGTBoundingBox()
 
         target['masks'] = torch.stack(masks)
         return image, target

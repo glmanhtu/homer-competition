@@ -1,0 +1,2 @@
+class NoGTBoundingBox(Exception):
+    pass
