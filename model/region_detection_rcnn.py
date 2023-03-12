@@ -1,9 +1,11 @@
 import torch
 import torchvision
 from torch import nn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_MobileNet_V3_Large_FPN_Weights
 from torchvision.models.detection.keypoint_rcnn import KeypointRCNNHeads, KeypointRCNNPredictor
 from torchvision.ops import MultiScaleRoIAlign
+
+from model.extra_head_rcnn import extra_roi_heads
 
 
 class RegionDetectionRCNN(nn.Module):
@@ -21,6 +23,10 @@ class RegionDetectionRCNN(nn.Module):
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
                                                                                min_size=img_size,
                                                                                max_size=img_size)
+        roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads)
+        model.roi_heads = roi_heads_extra
+
+        model.load_state_dict(FasterRCNN_MobileNet_V3_Large_FPN_Weights.COCO_V1.get_state_dict(progress=False))
 
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
