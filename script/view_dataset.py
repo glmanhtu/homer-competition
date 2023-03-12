@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt, patches
 from options.train_options import TrainOptions
 from utils import misc
 from utils.transforms import Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    LongRectangleCrop, GenerateHeatmap
+    LongRectangleCrop, GenerateHeatmap, GenerateKeypoint
 
 matplotlib.use('MACOSX')
 from dataset.papyrus import PapyrusDataset
@@ -23,7 +23,7 @@ transforms = Compose([
     RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
     PaddingImage(padding_size=50),
     FixedImageResize(args.image_size),
-    GenerateHeatmap(),
+    GenerateKeypoint(),
     ImageTransformCompose([
         torchvision.transforms.RandomApply([
             torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5)
@@ -60,12 +60,13 @@ for image, target in dataset:
     # Hide spines, ticks, etc.
     ax.axis('off')
 
-    hm = np.uint8(target['masks'].numpy() * 255.)
-    img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
-    img = np.uint8(0.5 * img + 0.5 * image)
+    for kps in target['keypoints'].numpy():
+        for kp in kps:
+            kp = list(map(int, kp[:2]))
+            image = cv2.circle(image.copy(), tuple(kp), 5, (255, 0, 0), 10)
 
     # Display the image.
-    ax.imshow(img, cmap='gray')
+    ax.imshow(image, cmap='gray')
 
     for region_bbox in region_bboxes:
 

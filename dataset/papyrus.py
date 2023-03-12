@@ -163,7 +163,7 @@ class PapyrusDataset(Dataset):
             try:
                 return self.transforms(img, target)
             except NoGTBoundingBox:
-                next_index = random.randint(0, len(self.imgs))
+                next_index = random.randint(0, len(self.imgs) - 1)
                 return self.__get_item_by_id(next_index)
 
     def __getitem__(self, idx):
