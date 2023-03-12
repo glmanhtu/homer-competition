@@ -16,7 +16,7 @@ from utils import misc, wb_utils
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, MetricLogging, \
     estimate_letter_scale_performance, LossLoging
 from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    ComputeAvgBoxHeight, LongRectangleCrop, GenerateHeatmap
+    ComputeAvgBoxHeight, LongRectangleCrop, GenerateHeatmap, GenerateKeypoint
 
 args = TrainOptions().parse()
 
@@ -42,7 +42,7 @@ class Trainer:
             RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
-            GenerateHeatmap(),
+            GenerateKeypoint(),
             ImageTransformCompose([
                 torchvision.transforms.RandomGrayscale(p=0.2),
                 torchvision.transforms.RandomApply([
@@ -59,7 +59,7 @@ class Trainer:
             LongRectangleCrop(),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
-            GenerateHeatmap(),
+            GenerateKeypoint(),
             ToTensor()])
         dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
 
@@ -152,7 +152,7 @@ class Trainer:
         cpu_device = torch.device("cpu")
 
         coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
-        iou_types = ["bbox", "segm"]
+        iou_types = ["bbox"]
         coco_evaluator = CocoEvaluator(coco, iou_types)
 
         logging_imgs = []
@@ -168,7 +168,7 @@ class Trainer:
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                               outputs[i]['labels'].type(torch.int64).numpy(),
                                               outputs[i]['scores'].numpy(),
-                                              outputs[i]['masks'])
+                                              outputs[i]['keypoints'])
                 logging_imgs.append(img)
                 if log_first_img:
                     break
@@ -178,15 +178,11 @@ class Trainer:
         coco_evaluator.summarize()
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
-        coco_eval_segm = coco_evaluator.coco_eval['segm'].stats
 
         val_dict = {
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],
-            f'{mode}/mAP_segm_0.5:0.95': coco_eval_segm[0],
-            f'{mode}/mAP_segm_0.5': coco_eval_segm[1],
-            f'{mode}/mAP_segm_0.75': coco_eval_segm[2],
 
         }
         wandb.log(val_dict, step=self._current_step)

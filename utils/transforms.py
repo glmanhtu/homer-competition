@@ -52,7 +52,7 @@ def validate_boxes(boxes, labels, width, height, border_threshold=10, min_w=2., 
 def crop_image(image, target, new_x, new_y, new_width, new_height):
     new_img = image.crop((new_x, new_y, new_x + new_width, new_y + new_height))
     boxes = shift_coordinates(target['boxes'], new_x, new_y)
-    boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=False)
+    boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
     regions = shift_coordinates(target['regions'], new_x, new_y)
     min_factor = 0.1
     regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
@@ -125,6 +125,17 @@ class RandomCropImage(nn.Module):
             return image, target
 
         return self.forward(image, target, n_times + 1)
+
+
+class GenerateKeypoint:
+    def __call__(self, image, target):
+        boxes = target['boxes']
+        box_centers = torch.ones((boxes.shape[0], 3))
+        box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
+        box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
+        keypoints = box_centers.unsqueeze(1)
+        target['keypoints'] = keypoints
+        return image, target
 
 
 class GenerateHeatmap:

@@ -9,18 +9,17 @@ display_ids = {"Fragment": 1}
 class_id_to_label = {int(v): k for k, v in display_ids.items()}
 
 
-def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, masks):
+def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, keypoints):
     # load raw input photo
     raw_image = np.asarray(torchvision.transforms.ToPILImage()(tensor_img))
     all_boxes = []
-    masked_images = []
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         # get coordinates and labels
-        mask = (masks[b_i][0] > 0.5).type(torch.uint8)
-        hm = np.uint8(mask.numpy() * 255.)
-        masked_img = cv2.applyColorMap(hm, cv2.COLORMAP_JET)
-        masked_images.append(masked_img)
+        for kps in keypoints:
+            for idx, kp in enumerate(kps):
+                kp = list(map(int, kp[:2]))
+                raw_image = cv2.circle(raw_image.copy(), tuple(kp), 5, (255, 0, 0), 10)
 
         box_data = {
             "position": {
@@ -36,11 +35,7 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, masks):
             "scores": {"score": float(v_scores[b_i])}}
         all_boxes.append(box_data)
 
-    out_image = 0.6 * raw_image
-    for img in masked_images:
-        out_image += 0.4 * img
-
-    out_image = np.uint8(out_image)
+    out_image = np.uint8(raw_image)
     # log to wandb: raw image, predictions, and dictionary of class labels for each class id
     box_image = wandb.Image(out_image,
                             boxes={"predictions": {"box_data": all_boxes, "class_labels": class_id_to_label}})

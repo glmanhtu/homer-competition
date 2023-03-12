@@ -2,6 +2,7 @@ import torch
 import torchvision
 from torch import nn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.keypoint_rcnn import KeypointRCNNHeads, KeypointRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNHeads, MaskRCNNPredictor
 from torchvision.ops import MultiScaleRoIAlign
 
@@ -10,13 +11,11 @@ class RegionDetectionRCNN(nn.Module):
 
     def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()
-        mask_roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
-        mask_layers = (256, 256, 256, 256)
-        mask_dilation = 1
-        mask_head = MaskRCNNHeads(256, mask_layers, mask_dilation)
-        mask_predictor_in_channels = 256  # == mask_layers[-1]
-        mask_dim_reduced = 256
-        mask_predictor = MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, 2)
+        keypoint_roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
+        keypoint_layers = tuple(512 for _ in range(8))
+        keypoint_head = KeypointRCNNHeads(256, keypoint_layers)
+        keypoint_dim_reduced = 512  # == keypoint_layers[-1]
+        keypoint_predictor = KeypointRCNNPredictor(keypoint_dim_reduced, 1)
 
         # We have to set fixed size image since we need to handle the resizing for both boxes and letter_boxes
         # Todo: overwrite GeneralizedRCNNTransform to resize both boxes and letter_boxes
@@ -26,9 +25,9 @@ class RegionDetectionRCNN(nn.Module):
 
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
-        model.roi_heads.mask_roi_pool = mask_roi_pool
-        model.roi_heads.mask_head = mask_head
-        model.roi_heads.mask_predictor = mask_predictor
+        model.roi_heads.keypoint_roi_pool = keypoint_roi_pool
+        model.roi_heads.keypoint_head = keypoint_head
+        model.roi_heads.keypoint_predictor = keypoint_predictor
 
         self.network = model
         self.to(device)
