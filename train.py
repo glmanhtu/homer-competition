@@ -33,6 +33,7 @@ wandb.init(group=args.group,
 class Trainer:
     def __init__(self):
         device = torch.device('cuda' if args.cuda else 'cpu')
+        self._device = device
 
         self._working_dir = os.path.join(args.checkpoints_dir, args.name)
         self._model = ModelsFactory.get_model(args, self._working_dir, is_train=True, device=device,
@@ -152,13 +153,18 @@ class Trainer:
         coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
         iou_types = ["bbox", "segm"]
         coco_evaluator = CocoEvaluator(coco, iou_types)
+        heatmap_generator = GenerateHeatmap(self._device)
 
         logging_imgs = []
         for i_train_batch, batch in enumerate(val_loader):
-            images, target = batch
+            images, targets = batch
             region_predictions = self._model.forward(images)
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
-            region_target = [convert_region_target(x) for x in target]
+            region_target = []
+            for image, target in zip(images, targets):
+                props = convert_region_target(target)
+                props['masks'] = heatmap_generator(image, target).cpu()
+                region_target.append(props)
             res = {target["image_id"].item(): output for target, output in zip(region_target, outputs)}
             coco_evaluator.update(res)
 
