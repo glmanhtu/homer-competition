@@ -146,6 +146,8 @@ class GenerateHeatmap:
             heatmap = self.generate_heatmap(box_centers, sigma, im_shape[1], im_shape[0], device=self.device)
         else:
             heatmap = torch.zeros(im_shape)
+        heatmap *= 255
+        heatmap = heatmap.type(torch.uint8)
         return heatmap.expand(len(target['region_labels']), *heatmap.shape)
 
     def mask_bounding_boxes(self, bounding_boxes, image_size):

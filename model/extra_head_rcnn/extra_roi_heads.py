@@ -22,7 +22,7 @@ def maskrcnn_loss(mask_logits, proposals, gt_masks, gt_labels, mask_matched_idxs
     discretization_size = mask_logits.shape[-1]
     labels = [gt_label[idxs] for gt_label, idxs in zip(gt_labels, mask_matched_idxs)]
     mask_targets = [
-        project_masks_on_boxes(m, p, i, discretization_size) for m, p, i in zip(gt_masks, proposals, mask_matched_idxs)
+        project_masks_on_boxes(m / 255, p, i, discretization_size) for m, p, i in zip(gt_masks, proposals, mask_matched_idxs)
     ]
 
     labels = torch.cat(labels, dim=0)
