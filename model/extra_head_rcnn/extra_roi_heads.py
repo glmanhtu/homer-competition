@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple, Optional
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-from torchvision.models.detection.roi_heads import RoIHeads, fastrcnn_loss, maskrcnn_loss, maskrcnn_inference, \
+from torchvision.models.detection.roi_heads import RoIHeads, fastrcnn_loss, \
     keypointrcnn_inference, project_masks_on_boxes, keypointrcnn_loss
 
 
@@ -37,6 +37,36 @@ def maskrcnn_loss(mask_logits, proposals, gt_masks, gt_labels, mask_matched_idxs
         mask_logits[torch.arange(labels.shape[0], device=labels.device), labels], mask_targets
     )
     return mask_loss
+
+
+def maskrcnn_inference(x, labels):
+    # type: (Tensor, List[Tensor]) -> List[Tensor]
+    """
+    From the results of the CNN, post process the masks
+    by taking the mask corresponding to the class with max
+    probability (which are of fixed size and directly output
+    by the CNN) and return the masks in the mask field of the BoxList.
+
+    Args:
+        x (Tensor): the mask logits
+        labels (list[BoxList]): bounding boxes that are used as
+            reference, one for ech image
+
+    Returns:
+        results (list[BoxList]): one BoxList for each image, containing
+            the extra field mask
+    """
+    heatmap = x
+
+    # select masks corresponding to the predicted classes
+    num_masks = x.shape[0]
+    boxes_per_image = [label.shape[0] for label in labels]
+    labels = torch.cat(labels)
+    index = torch.arange(num_masks, device=labels.device)
+    heatmap = heatmap[index, labels][:, None]
+    heatmap = heatmap.split(boxes_per_image, dim=0)
+
+    return heatmap
 
 
 def from_origin(roi: RoIHeads):
