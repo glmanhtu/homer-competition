@@ -27,7 +27,8 @@ class RegionDetectionRCNN(nn.Module):
         # Todo: overwrite GeneralizedRCNNTransform to resize both boxes and letter_boxes
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
                                                                                min_size=img_size,
-                                                                               max_size=img_size)
+                                                                               max_size=img_size,
+                                                                               box_score_thresh=0.5)
         roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads)
         model.roi_heads = roi_heads_extra
 
