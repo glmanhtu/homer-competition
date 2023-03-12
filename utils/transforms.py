@@ -7,6 +7,8 @@ from PIL import Image
 from torch import nn
 import torchvision.ops.boxes as bops
 
+from utils.misc import filter_boxes
+
 
 class Compose:
     def __init__(self, transforms):
@@ -132,11 +134,16 @@ class GenerateHeatmap:
     def __call__(self, image, target):
         boxes = target['boxes']
         im_shape = (image.height, image.width)
-        if len(boxes) > 0:
-            heatmap = self.mask_bounding_boxes(boxes, im_shape)
-            target['masks'] = heatmap[0]
-        else:
-            target['masks'] = torch.zeros(im_shape)
+        masks = []
+        for region_box in target['regions']:
+            boxes_in_region = filter_boxes(region_box, boxes)
+            if len(boxes_in_region) > 0:
+                heatmap = self.mask_bounding_boxes(boxes_in_region, im_shape)
+                masks.append(heatmap[0])
+            else:
+                masks.append(torch.zeros(im_shape))
+
+        target['masks'] = torch.stack(masks)
         return image, target
 
     def mask_bounding_boxes(self, bounding_boxes, image_size):
