@@ -154,7 +154,7 @@ def convert_to_coco_api(ds, target_transform=None, compute_mask=None):
         # targets = ds.get_annotations(img_idx)
         img, targets = ds[img_idx]
         if compute_mask:
-            targets['masks'] = compute_mask(img, targets).cpu()
+            targets['masks'] = (compute_mask(img, targets) > 0).type(torch.uint8).cpu()
         if target_transform:
             targets = target_transform(targets)
         image_id = targets["image_id"].item()
