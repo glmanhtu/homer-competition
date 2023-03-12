@@ -16,7 +16,10 @@ class RegionDetectionRCNN(nn.Module):
         mask_head = MaskRCNNHeads(256, mask_layers, mask_dilation)
         mask_predictor_in_channels = 256  # == mask_layers[-1]
         mask_dim_reduced = 256
-        mask_predictor = MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, 2)
+        mask_predictor = nn.Sequential(
+            MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, mask_dim_reduced),
+            MaskRCNNPredictor(mask_dim_reduced, mask_dim_reduced, 2),
+        )
 
         # We have to set fixed size image since we need to handle the resizing for both boxes and letter_boxes
         # Todo: overwrite GeneralizedRCNNTransform to resize both boxes and letter_boxes
