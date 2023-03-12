@@ -20,7 +20,7 @@ class RegionDetectionRCNN(nn.Module):
         mask_dim_reduced = 256
         mask_predictor = nn.Sequential(
             # MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, mask_dim_reduced),
-            MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, 1),
+            MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, 2),
         )
 
         # We have to set fixed size image since we need to handle the resizing for both boxes and letter_boxes
