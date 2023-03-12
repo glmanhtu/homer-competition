@@ -1,9 +1,11 @@
 import torch
 import torchvision
 from torch import nn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_MobileNet_V3_Large_FPN_Weights
 from torchvision.models.detection.mask_rcnn import MaskRCNNHeads, MaskRCNNPredictor
 from torchvision.ops import MultiScaleRoIAlign
+
+from model.extra_head_rcnn import extra_roi_heads
 
 
 class RegionDetectionRCNN(nn.Module):
@@ -17,8 +19,8 @@ class RegionDetectionRCNN(nn.Module):
         mask_predictor_in_channels = 256  # == mask_layers[-1]
         mask_dim_reduced = 256
         mask_predictor = nn.Sequential(
-            MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, mask_dim_reduced),
-            MaskRCNNPredictor(mask_dim_reduced, mask_dim_reduced, 2),
+            # MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, mask_dim_reduced),
+            MaskRCNNPredictor(mask_predictor_in_channels, mask_dim_reduced, 2),
         )
 
         # We have to set fixed size image since we need to handle the resizing for both boxes and letter_boxes
@@ -26,6 +28,10 @@ class RegionDetectionRCNN(nn.Module):
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
                                                                                min_size=img_size,
                                                                                max_size=img_size)
+        roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads)
+        model.roi_heads = roi_heads_extra
+
+        model.load_state_dict(FasterRCNN_MobileNet_V3_Large_FPN_Weights.COCO_V1.get_state_dict(progress=False))
 
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
@@ -38,7 +44,6 @@ class RegionDetectionRCNN(nn.Module):
 
     def forward(self, x, y=None):
         return self.network(x, y)
-
 
 
 if __name__ == '__main__':

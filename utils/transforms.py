@@ -132,21 +132,21 @@ class RandomCropImage(nn.Module):
 
 class GenerateHeatmap:
 
+    def __init__(self, device):
+        self.device = device
+
     def __call__(self, image, target):
         boxes = target['boxes']
         im_shape = (image.height, image.width)
-        masks = []
-        for region_box in target['regions']:
-            boxes_in_region = filter_boxes(region_box, boxes)
-            if len(boxes_in_region) > 0:
-                heatmap = self.mask_bounding_boxes(boxes_in_region, im_shape)
-                masks.append(heatmap[0])
-            else:
-                masks.append(torch.zeros(im_shape))
-        if len(masks) == 0:
-            raise NoGTBoundingBox()
-
-        target['masks'] = torch.stack(masks).type(torch.uint8)
+        if len(boxes) > 0:
+            box_centers = torch.zeros((boxes.shape[0], 2))
+            sigma = torch.max(boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]) / 6
+            box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
+            box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
+            heatmap = self.generate_heatmap(box_centers, sigma, image.width, image.height, device=self.device)
+        else:
+            heatmap = torch.zeros(im_shape)
+        target['masks'] = heatmap.expand(len(target['region_labels']), *heatmap.shape)
         return image, target
 
     def mask_bounding_boxes(self, bounding_boxes, image_size):
