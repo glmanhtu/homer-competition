@@ -33,7 +33,7 @@ def maskrcnn_loss(mask_logits, proposals, gt_masks, gt_labels, mask_matched_idxs
     if mask_targets.numel() == 0:
         return mask_logits.sum() * 0
 
-    mask_loss = F.mse_loss(
+    mask_loss = F.smooth_l1_loss(
         mask_logits[torch.arange(labels.shape[0], device=labels.device), labels], mask_targets
     )
     return mask_loss
