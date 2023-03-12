@@ -3,7 +3,6 @@ import torchvision
 from torch import nn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.keypoint_rcnn import KeypointRCNNHeads, KeypointRCNNPredictor
-from torchvision.models.detection.mask_rcnn import MaskRCNNHeads, MaskRCNNPredictor
 from torchvision.ops import MultiScaleRoIAlign
 
 

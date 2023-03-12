@@ -1,11 +1,14 @@
 import glob
 import json
 import os
+import random
 
 import cv2
 import torch
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
+
+from utils.exceptions import NoGTBoundingBox
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -91,7 +94,7 @@ class PapyrusDataset(Dataset):
     def __len__(self):
         return len(self.imgs)
 
-    def __getitem__(self, idx):
+    def __get_item_by_id(self, idx):
         image_path, part = self.imgs[idx]
         image = self.data['images'][image_path]
         img_url = image['img_url'].split('/')
@@ -157,6 +160,11 @@ class PapyrusDataset(Dataset):
         with Image.open(fname) as f:
             img = f.convert('RGB')
         if self.transforms is not None:
-            img, target = self.transforms(img, target)
+            try:
+                return self.transforms(img, target)
+            except NoGTBoundingBox:
+                next_index = random.randint(0, len(self.imgs))
+                return self.__get_item_by_id(next_index)
 
-        return img, target
+    def __getitem__(self, idx):
+        return self.__get_item_by_id(idx)

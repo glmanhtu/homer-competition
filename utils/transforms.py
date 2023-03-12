@@ -7,6 +7,8 @@ from PIL import Image
 from torch import nn
 import torchvision.ops.boxes as bops
 
+from utils.exceptions import NoGTBoundingBox
+
 
 class Compose:
     def __init__(self, transforms):
@@ -130,6 +132,8 @@ class RandomCropImage(nn.Module):
 class GenerateKeypoint:
     def __call__(self, image, target):
         boxes = target['boxes']
+        if len(boxes) == 0:
+            raise NoGTBoundingBox()
         box_centers = torch.ones((boxes.shape[0], 3))
         box_centers[:, 0] = (boxes[:, 0] + boxes[:, 2]) / 2.
         box_centers[:, 1] = (boxes[:, 1] + boxes[:, 3]) / 2.
