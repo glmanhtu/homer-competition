@@ -162,9 +162,8 @@ class Trainer:
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
             region_target = []
             for image, target in zip(images, targets):
-                props = convert_region_target(target)
-                props['masks'] = heatmap_generator(image, target).cpu()
-                region_target.append(props)
+                target['masks'] = heatmap_generator(image, target).cpu()
+                region_target.append(convert_region_target(target))
             res = {target["image_id"].item(): output for target, output in zip(region_target, outputs)}
             coco_evaluator.update(res)
 
