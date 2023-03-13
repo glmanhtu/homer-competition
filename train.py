@@ -40,13 +40,13 @@ class Trainer:
                                               dropout=args.dropout)
         transforms = Compose([
             LongRectangleCrop(),
-            RandomCropImage(min_factor=0.4, max_factor=1, min_iou_papyrus=0.2),
+            RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
             ImageTransformCompose([
-                torchvision.transforms.RandomGrayscale(p=0.2),
+                torchvision.transforms.RandomGrayscale(p=0.3),
                 torchvision.transforms.RandomApply([
-                    torchvision.transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5),
+                    torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3),
                 ], p=0.5)
             ]),
             ToTensor()
