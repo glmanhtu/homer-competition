@@ -76,6 +76,25 @@ def flatten(l):
     return [item for sublist in l for item in sublist]
 
 
+class LossLoging:
+
+    def __init__(self):
+        self.losses = {}
+
+    def update(self, all_losses):
+        for key in all_losses.keys():
+            self.losses.setdefault(key, []).append(all_losses[key].item())
+
+    def get_report(self):
+        result = {}
+        for key in self.losses:
+            result[key] = sum(self.losses[key]) / len(self.losses[key])
+        return result
+
+    def clear(self):
+        self.losses = {}
+
+
 class MetricLogging:
 
     def __init__(self):

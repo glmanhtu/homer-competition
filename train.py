@@ -13,7 +13,7 @@ from frcnn.coco_utils import convert_to_coco_api
 from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
-from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target
+from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging
 from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
     ComputeAvgBoxHeight, LongRectangleCrop
 
@@ -117,21 +117,19 @@ class Trainer:
 
     def _train_epoch(self, i_epoch):
         self._model.set_train()
-        losses = []
+        losses = LossLoging()
         for i_train_batch, train_batch in enumerate(self.data_loader_train):
             iter_start_time = time.time()
 
             train_loss = self._model.compute_loss(train_batch)
             self._model.optimise_params(train_loss)
-            losses.append(train_loss.item())
+            losses.update(train_loss)
 
             # update epoch info
             self._current_step += 1
 
             if self._current_step % args.save_freq_iter == 0:
-                save_dict = {
-                    'train/loss': sum(losses) / len(losses),
-                }
+                save_dict = losses.get_report()
                 losses.clear()
                 wandb.log(save_dict, step=self._current_step)
                 display_terminal(iter_start_time, i_epoch, i_train_batch, len(self.data_loader_train), save_dict)
@@ -155,20 +153,29 @@ class Trainer:
         coco_evaluator = CocoEvaluator(coco, iou_types)
 
         logging_imgs = []
+        scale_preds, scale_gts = [], []
         for i_train_batch, batch in enumerate(val_loader):
-            images, target = batch
+            images, targets = batch
             region_predictions = self._model.forward(images)
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
-            region_target = [convert_region_target(x) for x in target]
-            res = {target["image_id"].item(): output for target, output in zip(region_target, outputs)}
+            region_targets = [convert_region_target(x) for x in targets]
+            res = {target["image_id"].item(): output for target, output in zip(region_targets, outputs)}
             coco_evaluator.update(res)
+
+            for output, target in zip(outputs, region_targets):
+                for scale_pred, region_box in zip(output['extra_head_pred'], output['boxes']):
+                    boxes = misc.filter_boxes(region_box, target['letter_boxes'])
+                    if len(boxes) > 0:
+                        scale = (boxes[:, 3] - boxes[:, 1]).mean() / (region_box[3] - region_box[1])
+                        scale_gts.append(scale)
+                        scale_preds.append(scale_pred)
 
             for i in range(len(outputs)):
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                               outputs[i]['labels'].type(torch.int64).numpy(),
                                               outputs[i]['scores'].numpy(),
                                               outputs[i]['extra_head_pred'],
-                                              region_target[i]['letter_boxes'])
+                                              region_targets[i]['letter_boxes'])
                 logging_imgs.append(img)
                 if log_first_img:
                     break
@@ -178,8 +185,11 @@ class Trainer:
         coco_evaluator.summarize()
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
+        scale_criterion = torch.nn.SmoothL1Loss()
+        loss_scale = scale_criterion(torch.stack(scale_gts).view(-1), torch.stack(scale_preds).view(-1))
 
         val_dict = {
+            f'{mode}/loss_scale': loss_scale.item(),
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],

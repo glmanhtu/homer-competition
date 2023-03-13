@@ -127,8 +127,7 @@ class ExtraRoiHeads(RoIHeads):
             }
         else:
             assert extra_predictions is not None
-            labels = [r["labels"] for r in result]
-            extra_predictions = self.extra_criterion.post_prediction(extra_predictions, labels)
+            extra_predictions = self.extra_criterion.post_prediction(extra_predictions, label_proposals)
             for r, ex in zip(result, extra_predictions):
                 r['extra_head_pred'] = ex
 

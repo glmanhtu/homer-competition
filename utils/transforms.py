@@ -1,11 +1,13 @@
 import random
-from typing import List
+from typing import List, Optional, Dict, Tuple
 
 import torch
 import torchvision.transforms
 from PIL import Image
-from torch import nn
+from torch import nn, Tensor
 import torchvision.ops.boxes as bops
+from torchvision.models.detection.transform import GeneralizedRCNNTransform, _resize_image_and_masks, resize_boxes, \
+    resize_keypoints
 
 
 class Compose:
@@ -235,3 +237,51 @@ class ToTensor(nn.Module):
     def forward(self, images, target):
         images = self.to_tensor(images)
         return images, target
+
+
+class CustomiseGeneralizedRCNNTransform(GeneralizedRCNNTransform):
+
+    @staticmethod
+    def from_origin(origin: GeneralizedRCNNTransform):
+        return CustomiseGeneralizedRCNNTransform(
+            origin.min_size,
+            origin.max_size,
+            origin.image_mean,
+            origin.image_std,
+            origin.size_divisible,
+            origin.fixed_size,
+            _skip_resize=origin._skip_resize
+        )
+
+    def resize(
+        self,
+        image: Tensor,
+        target: Optional[Dict[str, Tensor]] = None,
+    ) -> Tuple[Tensor, Optional[Dict[str, Tensor]]]:
+        h, w = image.shape[-2:]
+        if self.training:
+            if self._skip_resize:
+                return image, target
+            size = float(self.torch_choice(self.min_size))
+        else:
+            # FIXME assume for now that testing uses the largest scale
+            size = float(self.min_size[-1])
+        image, target = _resize_image_and_masks(image, size, float(self.max_size), target, self.fixed_size)
+
+        if target is None:
+            return image, target
+
+        bbox = target["boxes"]
+        bbox = resize_boxes(bbox, (h, w), image.shape[-2:])
+        target["boxes"] = bbox
+
+        if "keypoints" in target:
+            keypoints = target["keypoints"]
+            keypoints = resize_keypoints(keypoints, (h, w), image.shape[-2:])
+            target["keypoints"] = keypoints
+
+        if "letter_boxes" in target:
+            letter_boxes = target['letter_boxes']
+            letter_boxes = resize_boxes(letter_boxes, (h, w), image.shape[-2:])
+            target['letter_boxes'] = letter_boxes
+        return image, target
