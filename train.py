@@ -40,7 +40,7 @@ class Trainer:
                                               dropout=args.dropout)
         transforms = Compose([
             LongRectangleCrop(),
-            RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
+            RandomCropImage(min_factor=0.4, max_factor=1, min_iou_papyrus=0.2),
             PaddingImage(padding_size=50),
             FixedImageResize(args.image_size),
             ImageTransformCompose([
