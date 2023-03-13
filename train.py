@@ -5,6 +5,7 @@ import time
 import numpy as np
 import torch
 import torchvision.transforms
+from scipy.stats import pearsonr
 from torch.utils.data import DataLoader
 
 import wandb
@@ -188,7 +189,7 @@ class Trainer:
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
         scale_criterion = torch.nn.SmoothL1Loss()
         scale_gts, scale_preds = torch.stack(scale_gts).view(-1), torch.stack(scale_preds).view(-1)
-        pcc = np.corrcoef(scale_preds.numpy(), scale_gts.numpy())
+        pcc = pearsonr(scale_preds.numpy(), scale_gts.numpy())
         loss_scale = scale_criterion(scale_preds, scale_gts)
 
         val_dict = {
