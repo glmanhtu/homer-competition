@@ -18,7 +18,7 @@ class RegionDetectionRCNN(nn.Module):
         extra_head = BoxAvgSizeHead(256, roi_pool, num_classes=n_classes, dropout=dropout)
 
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
-                                                                               min_size=int(img_size * 2 / 3),
+                                                                               min_size=img_size,
                                                                                max_size=img_size)
         roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads, extra_head, BoxSizeCriterion())
         model.roi_heads = roi_heads_extra
