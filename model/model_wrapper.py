@@ -123,11 +123,7 @@ class ModelWrapper:
         return all_losses
 
     def optimise_params(self, all_losses):
-        loss_extra_head = all_losses['loss_extra_head']
-        losses = [v for k, v in all_losses.items() if k != 'loss_extra_head']
-        detection_loss = sum(losses) / len(losses)
-        loss = (detection_loss + loss_extra_head) / 2
-
         self._optimizer.zero_grad()
+        loss = sum(all_losses.values()) / len(all_losses)
         loss.backward()
         self._optimizer.step()

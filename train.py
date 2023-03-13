@@ -2,6 +2,7 @@ import os.path
 import os.path
 import time
 
+import numpy as np
 import torch
 import torchvision.transforms
 from torch.utils.data import DataLoader
@@ -186,10 +187,14 @@ class Trainer:
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
         scale_criterion = torch.nn.SmoothL1Loss()
-        loss_scale = scale_criterion(torch.stack(scale_gts).view(-1), torch.stack(scale_preds).view(-1))
+        scale_gts, scale_preds = torch.stack(scale_gts).view(-1), torch.stack(scale_preds).view(-1)
+        pcc = np.corrcoef(scale_preds.numpy(), scale_gts.numpy())
+        loss_scale = scale_criterion(scale_preds, scale_gts)
 
         val_dict = {
             f'{mode}/loss_scale': loss_scale.item(),
+            f'{mode}/scale_pcc': pcc[0],
+
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],
