@@ -24,6 +24,7 @@ class Compose:
 
 
 def shift_coordinates(coordinates, offset_x, offset_y):
+    coordinates = coordinates.clone()
     coordinates[:, 0] -= offset_x
     coordinates[:, 1] -= offset_y
     coordinates[:, 2] -= offset_x
@@ -101,7 +102,7 @@ class RegionImageCropAndRescale(nn.Module):
         return resize_sample(out_img, out_target, scale)
 
 
-class RandomCropAndPad(nn.Module):
+class CropAndPad(nn.Module):
 
     def __init__(self, image_size, fill=255):
         super().__init__()
@@ -110,6 +111,7 @@ class RandomCropAndPad(nn.Module):
 
     def forward(self, image, target):
         _, n_cols, n_rows, col, row = target['image_part']
+        print(target['image_part'])
         # First create a big image that contains the whole fragement
         big_img_w, big_img_h = n_cols * self.image_size, n_rows * self.image_size
         big_img_w = max((big_img_w - image.width) // 2 + image.width, self.image_size)
@@ -124,10 +126,10 @@ class RandomCropAndPad(nn.Module):
         target['regions'] = regions
 
         # Then crop the image using on the col and row provided
-        gap_w = (new_img.width - self.image_size) / n_cols
-        gap_h = (new_img.height - self.image_size) / n_rows
-        x = int(gap_w * col)
-        y = int(gap_h * col)
+        gap_w = 0 if n_cols < 2 else (new_img.width - self.image_size) / (n_cols - 1)
+        gap_h = 0 if n_rows < 2 else (new_img.height - self.image_size) / (n_rows - 1)
+        x = int(col * gap_w)
+        y = int(row * gap_h)
         return crop_image(new_img, target, x, y, self.image_size, self.image_size)
 
 

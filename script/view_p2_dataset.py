@@ -7,9 +7,9 @@ from matplotlib import pyplot as plt, patches
 from dataset.papyrus_p2 import PapyrusP2Dataset
 from options.train_options import TrainOptions
 from utils import misc
-from utils.transforms import Compose, ImageTransformCompose, RegionImageCropAndRescale, RandomCropAndPad
+from utils.transforms import Compose, ImageTransformCompose, RegionImageCropAndRescale, CropAndPad
 
-matplotlib.use('TkAgg')
+matplotlib.use('MacOSX')
 
 args = TrainOptions().parse()
 ref_box_height = 32
@@ -17,7 +17,7 @@ ref_box_height = 32
 transforms = Compose([
     RegionImageCropAndRescale(ref_box_height=ref_box_height),
     # RandomCropImage(min_factor=0.4, max_factor=1, min_iou_papyrus=0.2),
-    RandomCropAndPad(image_size=800),
+    CropAndPad(image_size=800),
     # FixedImageResize(args.image_size),
     ImageTransformCompose([
         torchvision.transforms.RandomApply([

@@ -17,7 +17,7 @@ from options.train_options import TrainOptions
 from utils import misc, wb_utils
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging
 from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    ComputeAvgBoxHeight, LongRectangleCrop, RandomCropAndPad
+    ComputeAvgBoxHeight, LongRectangleCrop, CropAndPad
 
 args = TrainOptions().parse()
 
@@ -39,7 +39,7 @@ class Trainer:
         self._model = ModelsFactory.get_model(args, self._working_dir, is_train=True, device=device,
                                               dropout=args.dropout)
         transforms = Compose([
-            RandomCropAndPad(image_size=800),
+            CropAndPad(image_size=800),
             ImageTransformCompose([
                 torchvision.transforms.RandomGrayscale(p=0.3),
                 torchvision.transforms.RandomApply([
@@ -53,7 +53,7 @@ class Trainer:
                                             collate_fn=misc.collate_fn,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
         transforms = Compose([
-            RandomCropAndPad(image_size=800),
+            CropAndPad(image_size=800),
             ToTensor()])
         dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
 
