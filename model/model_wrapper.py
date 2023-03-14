@@ -9,8 +9,9 @@ from utils.misc import map_location, convert_region_target
 
 
 class ModelWrapper:
-    def __init__(self, args, working_dir, model, is_train, device):
+    def __init__(self, mode, args, working_dir, model, is_train, device):
         self._model = model.to(device)
+        self._mode = mode
         self._args = args
         self._is_train = is_train
         self._save_dir = working_dir

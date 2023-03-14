@@ -12,7 +12,7 @@ from utils.transforms import CustomiseGeneralizedRCNNTransform
 
 class RegionDetectionRCNN(nn.Module):
 
-    def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
+    def __init__(self, device, n_classes, img_size, dropout=0.5):
         super().__init__()
         roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
         extra_head = BoxAvgSizeHead(256, roi_pool, num_classes=n_classes, dropout=dropout)

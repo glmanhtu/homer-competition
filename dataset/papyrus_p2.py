@@ -1,0 +1,43 @@
+import math
+import os
+
+import torch
+
+from dataset.papyrus import PapyrusDataset
+from utils import misc
+
+
+def split_region(width, height, size):
+    n_rows = math.ceil(width / size)
+    n_cols = math.ceil(height / size)
+    return n_rows, n_cols
+
+
+class PapyrusP2Dataset(PapyrusDataset):
+
+    def __init__(self, dataset_path: str, transforms, is_training, image_size, ref_box_size=32):
+        self.im_size = image_size
+        self.ref_box_size = ref_box_size
+        super().__init__(dataset_path, transforms, is_training)
+
+    def split_image(self, images):
+        ids = []
+        for i, image in enumerate(self.data['images']):
+            image_name = os.path.basename(image['file_name'])
+            if image_name in images:
+                for idx, region in enumerate(self.regions[image_name]):
+                    if 'PapyRegion' not in region['tags']:
+                        continue
+                    p = region['boundingBox']
+                    region_box = torch.as_tensor([p['left'], p['top'], p['left'] + p['width'], p['top'] + p['height']])
+                    boxes = misc.filter_boxes(region_box, self.boxes[image['bln_id']])
+                    if len(boxes) == 0:
+                        continue
+                    box_size = (boxes[:, 3] - boxes[:, 1]).mean()
+                    scale = (self.ref_box_size / box_size).item()
+                    region_width, region_height = p['width'] * scale, p['height'] * scale
+                    n_cols, n_rows = split_region(region_width, region_height, self.im_size)
+                    for col in range(n_cols):
+                        for row in range(n_rows):
+                            ids.append((i, [idx, n_cols, n_rows, col, row]))
+        return ids

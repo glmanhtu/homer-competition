@@ -1,6 +1,7 @@
 import random
 from typing import List, Optional, Dict, Tuple
 
+import numpy as np
 import torch
 import torchvision.transforms
 from PIL import Image
@@ -8,6 +9,8 @@ from torch import nn, Tensor
 import torchvision.ops.boxes as bops
 from torchvision.models.detection.transform import GeneralizedRCNNTransform, _resize_image_and_masks, resize_boxes, \
     resize_keypoints
+
+from utils.exceptions import NoGTBoundingBox
 
 
 class Compose:
@@ -28,18 +31,28 @@ def shift_coordinates(coordinates, offset_x, offset_y):
     return coordinates
 
 
-def validate_boxes(boxes, labels, width, height, border_threshold=10, min_w=2., min_h=2, drop_if_missing=False):
-    invalid_boxes = torch.logical_or(boxes[:, 0] > width - border_threshold, boxes[:, 2] < border_threshold)
-    invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] > height - border_threshold)
-    invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] < border_threshold)
-    if drop_if_missing:
-        invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 0] < 0)
-        invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] < 0)
-        invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 2] > width)
-        invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] > height)
+def validate_boxes(boxes, labels, width, height, min_w=2, min_h=2, drop_if_missing=False, p_drop=0.25):
+    invalid_boxes = torch.logical_or(boxes[:, 0] > width, boxes[:, 2] < 0)
+    invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] > height)
+    invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] < 0)
 
     boxes = boxes[torch.logical_not(invalid_boxes)]
     labels = labels[torch.logical_not(invalid_boxes)]
+    if drop_if_missing:
+        # The percentage (in width) of boxes that has x0 < 0
+        p_lt_zero_w = torch.maximum(0 - boxes[:, 0], torch.tensor(0)) / (boxes[:, 2] - boxes[:, 0])
+        # The percentage (in height) of boxes that has y0 < 0
+        p_lt_zero_h = np.maximum(0 - boxes[:, 1], torch.tensor(0)) / (boxes[:, 3] - boxes[:, 1])
+        # The percentage (in width) of boxes that has x2 > width
+        p_gt_w_w = np.maximum(boxes[:, 2] - torch.tensor(width), 0) / (boxes[:, 2] - boxes[:, 0])
+        # The percentage (in width) of boxes that has y2 > height
+        p_gt_h_h = np.maximum(boxes[:, 3] - torch.tensor(height), 0) / (boxes[:, 3] - boxes[:, 1])
+        invalid_boxes = torch.logical_or(p_lt_zero_h > p_drop, p_lt_zero_w > p_drop)
+        invalid_boxes = torch.logical_or(invalid_boxes, p_gt_h_h > p_drop)
+        invalid_boxes = torch.logical_or(invalid_boxes, p_gt_w_w > p_drop)
+
+        boxes = boxes[torch.logical_not(invalid_boxes)]
+        labels = labels[torch.logical_not(invalid_boxes)]
 
     boxes[:, 0][boxes[:, 0] < 0] = 0.
     boxes[:, 1][boxes[:, 1] < 0] = 0.
@@ -52,11 +65,11 @@ def validate_boxes(boxes, labels, width, height, border_threshold=10, min_w=2., 
 
 
 def crop_image(image, target, new_x, new_y, new_width, new_height):
-    new_img = image.crop((new_x, new_y, new_x + new_width, new_y + new_height))
+    new_img = image.crop((int(new_x), int(new_y), int(new_x + new_width), int(new_y + new_height)))
     boxes = shift_coordinates(target['boxes'], new_x, new_y)
     boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
     regions = shift_coordinates(target['regions'], new_x, new_y)
-    min_factor = 0.1
+    min_factor = 0.05
     regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
                                             min_w=new_width*min_factor, min_h=new_height*min_factor)
     target['boxes'] = boxes
@@ -67,6 +80,55 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     target['region_area'] = (regions[:, 3] - regions[:, 1]) * (regions[:, 2] - regions[:, 0])
     target['iscrowd'] = torch.zeros((labels.shape[0],), dtype=torch.int64)
     return new_img, target
+
+
+class RegionImageCropAndRescale(nn.Module):
+
+    def __init__(self, ref_box_height=32):
+        super().__init__()
+        self.ref_box_height = ref_box_height
+
+    def forward(self, image, target):
+        region_part, _, _, _, _ = target['image_part']
+        region = target['regions'][region_part].numpy()
+        min_x, min_y, width, height = region[0], region[1], region[2] - region[0], region[3] - region[1]
+        out_img, out_target = crop_image(image, target, min_x, min_y, width, height)
+        boxes = out_target['boxes']
+        if len(boxes) == 0:
+            raise NoGTBoundingBox()
+        box_height = (boxes[:, 3] - boxes[:, 1]).mean()
+        scale = self.ref_box_height / box_height
+        return resize_sample(out_img, out_target, scale)
+
+
+class RandomCropAndPad(nn.Module):
+
+    def __init__(self, image_size, fill=255):
+        super().__init__()
+        self.image_size = image_size
+        self.fill = fill
+
+    def forward(self, image, target):
+        _, n_cols, n_rows, col, row = target['image_part']
+        # First create a big image that contains the whole fragement
+        big_img_w, big_img_h = n_cols * self.image_size, n_rows * self.image_size
+        big_img_w = max((big_img_w - image.width) // 2 + image.width, self.image_size)
+        big_img_h = max((big_img_h - image.height) // 2 + image.height, self.image_size)
+        new_img = Image.new('RGB', (big_img_w, big_img_h), color=(self.fill, self.fill, self.fill))
+        x, y = (int(new_img.width - image.width) // 2, int(new_img.height - image.height) // 2)
+        new_img.paste(image, (x, y))
+
+        boxes = shift_coordinates(target['boxes'], -x, -y)
+        target['boxes'] = boxes
+        regions = shift_coordinates(target['regions'], -x, -y)
+        target['regions'] = regions
+
+        # Then crop the image using on the col and row provided
+        gap_w = (new_img.width - self.image_size) / n_cols
+        gap_h = (new_img.height - self.image_size) / n_rows
+        x = int(gap_w * col)
+        y = int(gap_h * col)
+        return crop_image(new_img, target, x, y, self.image_size, self.image_size)
 
 
 class LongRectangleCrop(nn.Module):
@@ -186,6 +248,15 @@ class PaddingImage(nn.Module):
         return result, target
 
 
+def resize_sample(image, target, factor):
+    raw_image = image.resize((int(image.width * factor), int(image.height * factor)))
+    target['boxes'] = target['boxes'] * factor
+    target['regions'] = target['regions'] * factor
+    target['region_area'] = target['region_area'] * factor
+    target['area'] = target['area'] * factor
+    return raw_image, target
+
+
 class FixedImageResize(nn.Module):
     def __init__(self, max_size):
         super().__init__()
@@ -196,13 +267,8 @@ class FixedImageResize(nn.Module):
             factor = self.max_size / raw_image.height
         else:
             factor = self.max_size / raw_image.width
-        raw_image = raw_image.resize((int(raw_image.width * factor), int(raw_image.height * factor)))
-        target['boxes'] = target['boxes'] * factor
-        target['regions'] = target['regions'] * factor
-        target['region_area'] = target['region_area'] * factor
-        target['area'] = target['area'] * factor
 
-        return raw_image, target
+        return resize_sample(raw_image, target, factor)
 
 
 class ComputeAvgBoxHeight(nn.Module):

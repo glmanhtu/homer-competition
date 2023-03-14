@@ -16,6 +16,7 @@ class BaseOptions:
         self._parser.add_argument('--dataset', type=str, help='Path to the dataset')
         self._parser.add_argument('--batch_size', type=int, default=2, help='Input batch size')
         self._parser.add_argument('--image_size', type=int, default=625, help='Input image size')
+        self._parser.add_argument('--p2_image_size', type=int, default=800, help='Input image size')
         self._parser.add_argument('--optimizer', type=str, default='Adam')
         self._parser.add_argument('--cuda', action='store_true', help="Whether to use GPU")
         self._parser.add_argument('--resume', action='store_true', help="Resume training")

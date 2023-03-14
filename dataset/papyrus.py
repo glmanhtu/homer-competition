@@ -1,11 +1,14 @@
 import glob
 import json
 import os
+import random
 
 import cv2
 import torch
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
+
+from utils.exceptions import NoGTBoundingBox
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -71,6 +74,35 @@ class PapyrusDataset(Dataset):
             regions = json.load(f)['assets']
             for key, region in regions.items():
                 self.regions.setdefault(region['asset']['name'], []).extend(region['regions'])
+
+        boxes = {}
+        labels = {}
+        for annotation in self.data['annotations']:
+
+            try:
+                labels.setdefault(annotation['image_id'], []).append(mapping[int(annotation['category_id'])])
+            except:
+                continue
+            x, y, w, h = annotation['bbox']
+            xmin = x
+            xmax = x + w
+            ymin = y
+            ymax = y + h
+            boxes.setdefault(annotation['image_id'], []).append([xmin, ymin, xmax, ymax])
+
+        self.boxes, self.labels = {}, {}
+        for key in boxes:
+            self.boxes[key] = torch.as_tensor(boxes[key], dtype=torch.float32)
+            self.labels[key] = torch.as_tensor(boxes[key], dtype=torch.int64)
+
+        self.imgs = self.split_image(images)
+
+        self.dataset_path = dataset_path
+
+    def __len__(self):
+        return len(self.imgs)
+
+    def split_image(self, images):
         ids = []
         for i, image in enumerate(self.data['images']):
             if os.path.basename(image['file_name']) in images:
@@ -80,16 +112,7 @@ class PapyrusDataset(Dataset):
                     ids.append((i, 2))
                 else:
                     ids.append((i, 0))
-
-        self.imgs = ids
-        self.annotations = {}
-        for annotation in self.data['annotations']:
-            self.annotations.setdefault(annotation['image_id'], []).append(annotation)
-
-        self.dataset_path = dataset_path
-
-    def __len__(self):
-        return len(self.imgs)
+        return ids
 
     def __getitem__(self, idx):
         return self.__get_item_by_idx(idx)
@@ -115,25 +138,8 @@ class PapyrusDataset(Dataset):
             regions.append([xmin, ymin, xmax, ymax])
             region_labels.append(1)
 
-        boxes = []
-        labels = []
-        for annotation in self.annotations[image_id]:
-            try:
-                labels.append(mapping[int(annotation['category_id'])])
-            except:
-                continue
-            x, y, w, h = annotation['bbox']
-            xmin = x
-            xmax = x + w
-            ymin = y
-            ymax = y + h
-            boxes.append([xmin, ymin, xmax, ymax])
-
-        # convert everything into a torch.Tensor
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-
-        # there is only one class
-        labels = torch.as_tensor(labels, dtype=torch.int64)
+        boxes = self.boxes[image_id].clone()
+        labels = self.labels[image_id].clone()
 
         regions = torch.as_tensor(regions, dtype=torch.float32)
         region_labels = torch.as_tensor(region_labels, dtype=torch.int64)
@@ -159,7 +165,11 @@ class PapyrusDataset(Dataset):
         fname = os.path.join(src_folder, image_folder, image_file)
         with Image.open(fname) as f:
             img = f.convert('RGB')
-            if self.transforms is not None:
-                img, target = self.transforms(img, target)
+        if self.transforms is not None:
+            try:
+                return self.transforms(img, target)
+            except NoGTBoundingBox:
+                next_index = random.randint(0, len(self.imgs) - 1)
+                return self.__get_item_by_idx(next_index)
 
         return img, target
