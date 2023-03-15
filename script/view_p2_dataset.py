@@ -9,7 +9,7 @@ from options.train_options import TrainOptions
 from utils import misc
 from utils.transforms import Compose, ImageTransformCompose, RegionImageCropAndRescale, CropAndPad
 
-matplotlib.use('MacOSX')
+matplotlib.use('TkAgg')
 
 args = TrainOptions().parse()
 ref_box_height = 32

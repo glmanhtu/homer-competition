@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 
 import wandb
 from dataset.papyrus import PapyrusDataset
+from dataset.papyrus_p2 import PapyrusP2Dataset
 from frcnn.coco_eval import CocoEvaluator
 from frcnn.coco_utils import convert_to_coco_api
 from model.model_factory import ModelsFactory
@@ -17,10 +18,11 @@ from options.train_options import TrainOptions
 from utils import misc, wb_utils
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging
 from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    ComputeAvgBoxHeight, LongRectangleCrop, CropAndPad
+    ComputeAvgBoxHeight, LongRectangleCrop, CropAndPad, RegionImageCropAndRescale
 
 args = TrainOptions().parse()
-
+ref_box_height = 32
+image_size = 800
 
 wandb.init(group=args.group,
            name=args.name,
@@ -34,12 +36,12 @@ wandb.init(group=args.group,
 class Trainer:
     def __init__(self):
         device = torch.device('cuda' if args.cuda else 'cpu')
-
         self._working_dir = os.path.join(args.checkpoints_dir, args.name)
-        self._model = ModelsFactory.get_model(args, self._working_dir, is_train=True, device=device,
+        self._model = ModelsFactory.get_model(args, 'letter_detection', self._working_dir, is_train=True, device=device,
                                               dropout=args.dropout)
         transforms = Compose([
-            CropAndPad(image_size=800),
+            RegionImageCropAndRescale(ref_box_height=ref_box_height),
+            CropAndPad(image_size=image_size),
             ImageTransformCompose([
                 torchvision.transforms.RandomGrayscale(p=0.3),
                 torchvision.transforms.RandomApply([
@@ -48,14 +50,14 @@ class Trainer:
             ]),
             ToTensor()
         ])
-        dataset_train = PapyrusDataset(args.dataset, transforms, is_training=True)
+        dataset_train = PapyrusP2Dataset(args.dataset, transforms, is_training=True, image_size=image_size)
         self.data_loader_train = DataLoader(dataset_train, shuffle=True, num_workers=args.n_threads_train,
                                             collate_fn=misc.collate_fn,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
         transforms = Compose([
-            CropAndPad(image_size=800),
+            CropAndPad(image_size=image_size),
             ToTensor()])
-        dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
+        dataset_val = PapyrusP2Dataset(args.dataset, transforms, is_training=False, image_size=image_size)
 
         self.data_loader_val = DataLoader(dataset_val, shuffle=True, num_workers=args.n_threads_test,
                                           collate_fn=misc.collate_fn, batch_size=args.batch_size)

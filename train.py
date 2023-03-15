@@ -36,7 +36,7 @@ class Trainer:
         device = torch.device('cuda' if args.cuda else 'cpu')
 
         self._working_dir = os.path.join(args.checkpoints_dir, args.name)
-        self._model = ModelsFactory.get_model(args, self._working_dir, is_train=True, device=device,
+        self._model = ModelsFactory.get_model(args, 'region_detection', self._working_dir, is_train=True, device=device,
                                               dropout=args.dropout)
         transforms = Compose([
             LongRectangleCrop(),

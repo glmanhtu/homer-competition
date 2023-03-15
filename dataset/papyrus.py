@@ -93,7 +93,7 @@ class PapyrusDataset(Dataset):
         self.boxes, self.labels = {}, {}
         for key in boxes:
             self.boxes[key] = torch.as_tensor(boxes[key], dtype=torch.float32)
-            self.labels[key] = torch.as_tensor(boxes[key], dtype=torch.int64)
+            self.labels[key] = torch.as_tensor(labels[key], dtype=torch.int64)
 
         self.imgs = self.split_image(images)
 
