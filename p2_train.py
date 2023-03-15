@@ -2,14 +2,12 @@ import os.path
 import os.path
 import time
 
-import numpy as np
 import torch
 import torchvision.transforms
 from scipy.stats import pearsonr
 from torch.utils.data import DataLoader
 
 import wandb
-from dataset.papyrus import PapyrusDataset
 from dataset.papyrus_p2 import PapyrusP2Dataset
 from frcnn.coco_eval import CocoEvaluator
 from frcnn.coco_utils import convert_to_coco_api
@@ -17,8 +15,7 @@ from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging
-from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    ComputeAvgBoxHeight, LongRectangleCrop, CropAndPad, RegionImageCropAndRescale
+from utils.transforms import ToTensor, Compose, ImageTransformCompose, CropAndPad, RegionImageCropAndRescale
 
 args = TrainOptions().parse()
 ref_box_height = 32
@@ -37,7 +34,7 @@ class Trainer:
     def __init__(self):
         device = torch.device('cuda' if args.cuda else 'cpu')
         self._working_dir = os.path.join(args.checkpoints_dir, args.name)
-        self._model = ModelsFactory.get_model(args, 'letter_detection', self._working_dir, is_train=True, device=device,
+        self._model = ModelsFactory.get_model(args, args.mode, self._working_dir, is_train=True, device=device,
                                               dropout=args.dropout)
         transforms = Compose([
             RegionImageCropAndRescale(ref_box_height=ref_box_height),
