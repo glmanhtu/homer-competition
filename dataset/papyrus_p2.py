@@ -26,7 +26,7 @@ class PapyrusP2Dataset(PapyrusDataset):
         if is_training:
             return Compose([
                 RegionImageCropAndRescale(ref_box_height=self.ref_box_size),
-                CropAndPad(image_size=self.image_size),
+                CropAndPad(image_size=self.image_size, with_randomness=True),
                 ImageTransformCompose([
                     torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([
@@ -38,7 +38,7 @@ class PapyrusP2Dataset(PapyrusDataset):
         else:
             return Compose([
                 RegionImageCropAndRescale(ref_box_height=self.ref_box_size),
-                CropAndPad(image_size=self.image_size),
+                CropAndPad(image_size=self.image_size, with_randomness=False),
                 ToTensor()
             ])
 

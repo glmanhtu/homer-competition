@@ -104,10 +104,11 @@ class RegionImageCropAndRescale(nn.Module):
 
 class CropAndPad(nn.Module):
 
-    def __init__(self, image_size, fill=255):
+    def __init__(self, image_size, fill=255, with_randomness=False):
         super().__init__()
         self.image_size = image_size
         self.fill = fill
+        self.with_randomness = with_randomness
 
     def forward(self, image, target):
         _, n_cols, n_rows, col, row = target['image_part']
@@ -118,6 +119,10 @@ class CropAndPad(nn.Module):
         big_img_h = max((big_img_h - image.height) // 2 + image.height, self.image_size)
         new_img = Image.new('RGB', (big_img_w, big_img_h), color=(self.fill, self.fill, self.fill))
         x, y = (int(new_img.width - image.width) // 2, int(new_img.height - image.height) // 2)
+        if self.with_randomness:
+            x = random.randint(0, new_img.width - image.width)
+            y = random.randint(0, new_img.height - image.height)
+
         new_img.paste(image, (x, y))
 
         boxes = shift_coordinates(target['boxes'], -x, -y)
@@ -125,11 +130,18 @@ class CropAndPad(nn.Module):
         regions = shift_coordinates(target['regions'], -x, -y)
         target['regions'] = regions
 
+        delta_w, delta_h = 0, 0
+        if self.with_randomness:
+            delta_w = random.randint(0, int(0.3 * self.image_size)) * random.choice([-1, 1])
+            delta_h = random.randint(0, int(0.3 * self.image_size)) * random.choice([-1, 1])
+
         # Then crop the image using on the col and row provided
         gap_w = 0 if n_cols < 2 else (new_img.width - self.image_size) / (n_cols - 1)
         gap_h = 0 if n_rows < 2 else (new_img.height - self.image_size) / (n_rows - 1)
-        x = int(col * gap_w)
-        y = int(row * gap_h)
+        x = max(int(col * gap_w + delta_w), 0)
+        y = max(int(row * gap_h + delta_h), 0)
+        x = min(x, new_img.width - self.image_size)
+        y = min(y, new_img.height - self.image_size)
         return crop_image(new_img, target, x, y, self.image_size, self.image_size)
 
 
