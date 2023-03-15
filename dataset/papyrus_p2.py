@@ -2,9 +2,11 @@ import math
 import os
 
 import torch
+import torchvision
 
 from dataset.papyrus import PapyrusDataset
 from utils import misc
+from utils.transforms import Compose, RegionImageCropAndRescale, CropAndPad, ImageTransformCompose, ToTensor
 
 
 def split_region(width, height, size):
@@ -15,10 +17,29 @@ def split_region(width, height, size):
 
 class PapyrusP2Dataset(PapyrusDataset):
 
-    def __init__(self, dataset_path: str, transforms, is_training, image_size, ref_box_size=32):
+    def __init__(self, dataset_path: str, is_training, image_size, ref_box_size=32, transforms=None):
         self.im_size = image_size
         self.ref_box_size = ref_box_size
-        super().__init__(dataset_path, transforms, is_training)
+        super().__init__(dataset_path, is_training, image_size, transforms=transforms)
+
+    def get_transforms(self, is_training):
+        if is_training:
+            return Compose([
+                RegionImageCropAndRescale(ref_box_height=self.ref_box_size),
+                CropAndPad(image_size=self.image_size),
+                ImageTransformCompose([
+                    torchvision.transforms.RandomGrayscale(p=0.3),
+                    torchvision.transforms.RandomApply([
+                        torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
+                    ], p=0.5)
+                ]),
+                ToTensor()
+            ])
+        else:
+            return Compose([
+                CropAndPad(image_size=self.image_size),
+                ToTensor()
+            ])
 
     def split_image(self, images):
         ids = []

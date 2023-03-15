@@ -111,7 +111,7 @@ class CropAndPad(nn.Module):
 
     def forward(self, image, target):
         _, n_cols, n_rows, col, row = target['image_part']
-        print(target['image_part'])
+
         # First create a big image that contains the whole fragement
         big_img_w, big_img_h = n_cols * self.image_size, n_rows * self.image_size
         big_img_w = max((big_img_w - image.width) // 2 + image.width, self.image_size)
@@ -271,20 +271,6 @@ class FixedImageResize(nn.Module):
             factor = self.max_size / raw_image.width
 
         return resize_sample(raw_image, target, factor)
-
-
-class ComputeAvgBoxHeight(nn.Module):
-
-    def __init__(self, rescale_factor=1/30):
-        super().__init__()
-        self.rescale_factor = rescale_factor
-
-    def forward(self, image, target):
-        boxes = target['boxes']
-        avg_box_height = (boxes[:, 3] - boxes[:, 1])
-        avg_box_scale = avg_box_height.median()
-        target['avg_box_scale'] = avg_box_scale * self.rescale_factor
-        return image, target
 
 
 class ImageTransformCompose(nn.Module):

@@ -1,6 +1,7 @@
 import time
 import torch.nn.functional as F
 import torch
+from scipy.stats import pearsonr
 
 
 class EarlyStop:
@@ -109,17 +110,14 @@ class MetricLogging:
         self.predictions[key].append(predicts.view(-1, 1))
         self.actual[key].append(actual.view(-1, 1))
 
-    def get_raw_data(self, key):
-        pred = torch.stack(self.predictions[key], dim=0)
-        actual = torch.stack(self.actual[key], dim=0)
-        return pred, actual
-
-    def get_mae_loss(self, key):
-        pred = torch.stack(self.predictions[key], dim=0)
-        actual = torch.stack(self.actual[key], dim=0)
-        return F.l1_loss(pred.view(-1), actual.view(-1))
-
-    def get_mse_loss(self, key):
-        pred = torch.stack(self.predictions[key], dim=0)
-        actual = torch.stack(self.actual[key], dim=0)
-        return F.mse_loss(pred.view(-1), actual.view(-1))
+    def get_report(self):
+        result = {}
+        scale_criterion = torch.nn.SmoothL1Loss()
+        for key in self.actual:
+            pred = torch.stack(self.predictions[key], dim=0)
+            actual = torch.stack(self.actual[key], dim=0)
+            pcc = pearsonr(pred.numpy(), actual.numpy())
+            loss_scale = scale_criterion(pred, actual)
+            result[f'{key}/loss'] = loss_scale
+            result[f'{key}/pcc'] = pcc[0]
+        return result

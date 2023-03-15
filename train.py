@@ -2,24 +2,22 @@ import os.path
 import os.path
 import time
 
-import numpy as np
 import torch
-import torchvision.transforms
 from scipy.stats import pearsonr
 from torch.utils.data import DataLoader
 
 import wandb
-from dataset.papyrus import PapyrusDataset
+from dataset import dataset_factory
 from frcnn.coco_eval import CocoEvaluator
 from frcnn.coco_utils import convert_to_coco_api
 from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
-from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging
-from utils.transforms import ToTensor, Compose, ImageTransformCompose, FixedImageResize, RandomCropImage, PaddingImage, \
-    ComputeAvgBoxHeight, LongRectangleCrop
+from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging, \
+    MetricLogging
 
 args = TrainOptions().parse()
+ref_box_height = 32
 
 
 wandb.init(group=args.group,
@@ -38,29 +36,16 @@ class Trainer:
         self._working_dir = os.path.join(args.checkpoints_dir, args.name)
         self._model = ModelsFactory.get_model(args, args.mode, self._working_dir, is_train=True, device=device,
                                               dropout=args.dropout)
-        transforms = Compose([
-            LongRectangleCrop(),
-            RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
-            PaddingImage(padding_size=50),
-            FixedImageResize(args.image_size),
-            ImageTransformCompose([
-                torchvision.transforms.RandomGrayscale(p=0.3),
-                torchvision.transforms.RandomApply([
-                    torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
-                ], p=0.5)
-            ]),
-            ToTensor()
-        ])
-        dataset_train = PapyrusDataset(args.dataset, transforms, is_training=True)
+
+        dataset_train = dataset_factory.get_dataset(args.dataset, args.mode, is_training=True,
+                                                    image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
+                                                    ref_box_size=ref_box_height)
         self.data_loader_train = DataLoader(dataset_train, shuffle=True, num_workers=args.n_threads_train,
                                             collate_fn=misc.collate_fn,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
-        transforms = Compose([
-            LongRectangleCrop(),
-            PaddingImage(padding_size=50),
-            FixedImageResize(args.image_size),
-            ToTensor()])
-        dataset_val = PapyrusDataset(args.dataset, transforms, is_training=False)
+        dataset_val = dataset_factory.get_dataset(args.dataset, args.mode, is_training=False,
+                                                  image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
+                                                  ref_box_size=ref_box_height)
 
         self.data_loader_val = DataLoader(dataset_val, shuffle=True, num_workers=args.n_threads_test,
                                           collate_fn=misc.collate_fn, batch_size=args.batch_size)
@@ -144,40 +129,45 @@ class Trainer:
                 img_features[image_name] = []
             img_features[image_name].append(feature_cpu)
 
+    def _validate_box_height_prediction(self, outputs, region_targets, metric_logging: MetricLogging):
+        for output, target in zip(outputs, region_targets):
+            for scale_pred, region_box in zip(output['extra_head_pred'], output['boxes']):
+                boxes = misc.filter_boxes(region_box, target['letter_boxes'])
+                if len(boxes) > 0:
+                    scale = (boxes[:, 3] - boxes[:, 1]).mean() / (region_box[3] - region_box[1])
+                    metric_logging.update('scale', scale, scale_pred)
+
     def _validate(self, i_epoch, val_loader, mode='val', log_first_img=True):
         val_start_time = time.time()
         # set model to eval
         self._model.set_eval()
         cpu_device = torch.device("cpu")
 
-        coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
+        convert_target_fn = lambda x: x if args.mode != 'region_detection' else convert_region_target
+
+        coco = convert_to_coco_api(val_loader.dataset, convert_target_fn)
         iou_types = ["bbox"]
         coco_evaluator = CocoEvaluator(coco, iou_types)
 
         logging_imgs = []
-        scale_preds, scale_gts = [], []
+        metric_logging = MetricLogging()
         for i_train_batch, batch in enumerate(val_loader):
             images, targets = batch
             region_predictions = self._model.forward(images)
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
-            region_targets = [convert_region_target(x) for x in targets]
+            region_targets = [convert_target_fn(x) for x in targets]
             res = {target["image_id"].item(): output for target, output in zip(region_targets, outputs)}
             coco_evaluator.update(res)
 
-            for output, target in zip(outputs, region_targets):
-                for scale_pred, region_box in zip(output['extra_head_pred'], output['boxes']):
-                    boxes = misc.filter_boxes(region_box, target['letter_boxes'])
-                    if len(boxes) > 0:
-                        scale = (boxes[:, 3] - boxes[:, 1]).mean() / (region_box[3] - region_box[1])
-                        scale_gts.append(scale)
-                        scale_preds.append(scale_pred)
+            if args.mode == 'region_detection':
+                self._validate_box_height_prediction(outputs, region_targets, metric_logging)
 
             for i in range(len(outputs)):
+                scale_preds = None if 'extra_head_pred' not in outputs[i] else outputs[i]['extra_head_pred']
+                letter_boxes = None if 'letter_boxes' not in outputs[i] else outputs[i]['letter_boxes']
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                               outputs[i]['labels'].type(torch.int64).numpy(),
-                                              outputs[i]['scores'].numpy(),
-                                              outputs[i]['extra_head_pred'],
-                                              region_targets[i]['letter_boxes'])
+                                              outputs[i]['scores'].numpy(), scale_preds, letter_boxes)
                 logging_imgs.append(img)
                 if log_first_img:
                     break
@@ -187,19 +177,13 @@ class Trainer:
         coco_evaluator.summarize()
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
-        scale_criterion = torch.nn.SmoothL1Loss()
-        scale_gts, scale_preds = torch.stack(scale_gts).view(-1), torch.stack(scale_preds).view(-1)
-        pcc = pearsonr(scale_preds.numpy(), scale_gts.numpy())
-        loss_scale = scale_criterion(scale_preds, scale_gts)
 
         val_dict = {
-            f'{mode}/loss_scale': loss_scale.item(),
-            f'{mode}/scale_pcc': pcc[0],
-
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],
         }
+        val_dict.update(metric_logging.get_report())
         wandb.log(val_dict, step=self._current_step)
         display_terminal_eval(val_start_time, i_epoch, val_dict)
 

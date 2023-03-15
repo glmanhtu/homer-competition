@@ -5,10 +5,13 @@ import random
 
 import cv2
 import torch
+import torchvision
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
 
 from utils.exceptions import NoGTBoundingBox
+from utils.transforms import Compose, LongRectangleCrop, RandomCropImage, PaddingImage, FixedImageResize, \
+    ImageTransformCompose, ToTensor
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -55,8 +58,9 @@ mapping = {
 
 class PapyrusDataset(Dataset):
 
-    def __init__(self, dataset_path: str, transforms, is_training):
-        self.transforms = transforms
+    def __init__(self, dataset_path: str, is_training, image_size, transforms=None):
+        self.image_size = image_size
+        self.transforms = transforms if transforms is not None else self.get_transforms(is_training)
         images = glob.glob(os.path.join(dataset_path, '**', '*.jpg'), recursive=True)
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.JPG'), recursive=True))
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.png'), recursive=True))
@@ -101,6 +105,29 @@ class PapyrusDataset(Dataset):
 
     def __len__(self):
         return len(self.imgs)
+
+    def get_transforms(self, is_training):
+        if is_training:
+            return Compose([
+                LongRectangleCrop(),
+                RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
+                PaddingImage(padding_size=50),
+                FixedImageResize(self.image_size),
+                ImageTransformCompose([
+                    torchvision.transforms.RandomGrayscale(p=0.3),
+                    torchvision.transforms.RandomApply([
+                        torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
+                    ], p=0.5)
+                ]),
+                ToTensor()
+            ])
+        else:
+            return Compose([
+                LongRectangleCrop(),
+                PaddingImage(padding_size=50),
+                FixedImageResize(self.image_size),
+                ToTensor()
+            ])
 
     def split_image(self, images):
         ids = []

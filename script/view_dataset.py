@@ -28,7 +28,7 @@ transforms = Compose([
         ], p=0.5)]),
 ])
 
-dataset = PapyrusDataset(args.dataset, transforms, is_training=True)
+dataset = PapyrusDataset(args.dataset, is_training=True, image_size=args.image_size, transforms=transforms)
 
 colour_map = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
               "#C895C5", "#320033", "#FF6832", "#66E1D3", "#CFCDAC", "#D0AC94", "#7ED379", "#012C58"]
