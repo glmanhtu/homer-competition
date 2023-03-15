@@ -17,7 +17,7 @@ def split_region(width, height, size):
 
 class PapyrusP2Dataset(PapyrusDataset):
 
-    def __init__(self, dataset_path: str, is_training, image_size, ref_box_size=32, transforms=None):
+    def __init__(self, dataset_path: str, is_training, image_size, ref_box_size, transforms=None):
         self.im_size = image_size
         self.ref_box_size = ref_box_size
         super().__init__(dataset_path, is_training, image_size, transforms=transforms)
