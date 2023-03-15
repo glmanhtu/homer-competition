@@ -40,13 +40,14 @@ class Trainer:
                                                     image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
                                                     ref_box_size=args.ref_box_height)
         self.data_loader_train = DataLoader(dataset_train, shuffle=True, num_workers=args.n_threads_train,
-                                            collate_fn=misc.collate_fn,
+                                            collate_fn=misc.collate_fn, persistent_workers=True,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
         dataset_val = dataset_factory.get_dataset(args.dataset, args.mode, is_training=False,
                                                   image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
                                                   ref_box_size=args.ref_box_height)
 
         self.data_loader_val = DataLoader(dataset_val, shuffle=True, num_workers=args.n_threads_test,
+                                          persistent_workers=True, pin_memory=True,
                                           collate_fn=misc.collate_fn, batch_size=args.batch_size)
 
         self.early_stop = EarlyStop(args.early_stop)
