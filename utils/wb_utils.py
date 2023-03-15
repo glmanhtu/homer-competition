@@ -1,17 +1,20 @@
 import torchvision.transforms
 import wandb
 
+from dataset.papyrus import mapping
 from utils import misc
 
 display_ids = {"Fragment": 1}
 # this is a revese map of the integer class id to the string class label
 class_id_to_label = {int(v): k for k, v in display_ids.items()}
+class_id_to_label_letter = {v: k for k, v in mapping.items()}
 
 
 def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales, letter_boxes):
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
     all_boxes = []
+    label_mapping = class_id_to_label_letter if v_scales is None else class_id_to_label
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         message = ''
@@ -34,12 +37,12 @@ def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales, letter_box
             },
             "class_id": int(v_labels[b_i]),
             # optionally caption each box with its class and score
-            "box_caption": "%s (%.3f) %s" % (class_id_to_label[v_labels[b_i]], v_scores[b_i], message),
+            "box_caption": "%s (%.3f) %s" % (label_mapping[v_labels[b_i]], v_scores[b_i], message),
             "domain": "pixel",
             "scores": {"score": float(v_scores[b_i])}}
         all_boxes.append(box_data)
 
     # log to wandb: raw image, predictions, and dictionary of class labels for each class id
     box_image = wandb.Image(raw_image,
-                            boxes={"predictions": {"box_data": all_boxes, "class_labels": class_id_to_label}})
+                            boxes={"predictions": {"box_data": all_boxes, "class_labels": label_mapping}})
     return box_image
