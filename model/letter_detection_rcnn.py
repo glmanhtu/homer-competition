@@ -15,7 +15,7 @@ class LetterDetectionRCNN(nn.Module):
                                                                                rpn_batch_size_per_image=512,
                                                                                box_batch_size_per_image=1024,
                                                                                box_nms_thresh=0.4,
-                                                                               # box_score_thresh=0.3,
+                                                                               box_score_thresh=0.4,
                                                                                box_detections_per_img=320)
 
         # anchor_sizes = (
