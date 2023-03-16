@@ -13,7 +13,7 @@ class LetterDetectionRCNN(nn.Module):
                                                                                min_size=img_size,
                                                                                max_size=img_size,
                                                                                rpn_batch_size_per_image=512,
-                                                                               box_batch_size_per_image=1024,
+                                                                               box_batch_size_per_image=512,
                                                                                box_nms_thresh=0.4,
                                                                                box_score_thresh=0.4,
                                                                                box_detections_per_img=320)
