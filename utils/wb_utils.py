@@ -10,7 +10,7 @@ class_id_to_label = {int(v): k for k, v in display_ids.items()}
 class_id_to_label_letter = {v: str(k) for k, v in mapping.items()}
 
 
-def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales, letter_boxes):
+def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales=None, letter_boxes=None):
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
     all_boxes = []
