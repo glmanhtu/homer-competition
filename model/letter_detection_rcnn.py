@@ -12,6 +12,7 @@ class LetterDetectionRCNN(nn.Module):
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
                                                                                min_size=img_size,
                                                                                max_size=img_size,
+                                                                               rpn_batch_size_per_image=512,
                                                                                box_batch_size_per_image=1024,
                                                                                box_nms_thresh=0.4,
                                                                                # box_score_thresh=0.3,
