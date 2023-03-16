@@ -11,18 +11,22 @@ class LetterDetectionRCNN(nn.Module):
         super().__init__()
         model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
                                                                                min_size=img_size,
-                                                                               max_size=img_size)
+                                                                               max_size=img_size,
+                                                                               box_batch_size_per_image=1024,
+                                                                               box_nms_thresh=0.4,
+                                                                               # box_score_thresh=0.3,
+                                                                               box_detections_per_img=320)
 
         # anchor_sizes = (
         #                    (
-        #                        16,
         #                        32,
         #                        64,
         #                        96,
         #                        128,
+        #                        160,
         #                    ),
         #                ) * 3
-        # aspect_ratios = ((0.75, 1.0, 1.25),) * len(anchor_sizes)
+        # aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
         # rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
         # rpn_head = RPNHead(256, rpn_anchor_generator.num_anchors_per_location()[0])
         # model.rpn.anchor_generator = rpn_anchor_generator
