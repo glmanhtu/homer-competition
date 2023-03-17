@@ -1,10 +1,13 @@
+import copy
 import random
 from typing import List, Optional, Dict, Tuple
 
 import numpy as np
 import torch
+import torchvision
 import torchvision.transforms
 from PIL import Image
+from matplotlib import pyplot as plt, patches
 from torch import nn, Tensor
 import torchvision.ops.boxes as bops
 from torchvision.models.detection.transform import GeneralizedRCNNTransform, _resize_image_and_masks, resize_boxes, \
@@ -102,6 +105,12 @@ class RegionImageCropAndRescale(nn.Module):
         return resize_sample(out_img, out_target, scale)
 
 
+def tensor_delete(tensor, indices):
+    mask = torch.ones(tensor.shape[0], dtype=torch.bool)
+    mask[indices] = False
+    return tensor[mask]
+
+
 class CropAndPad(nn.Module):
 
     def __init__(self, image_size, fill=255, with_randomness=False):
@@ -166,6 +175,43 @@ class LongRectangleCrop(nn.Module):
             new_width = int(self.split_at * image.width)
             if image_part == 2:
                 min_x, min_y = image.width - new_width, 0
+        else:
+            return image, target
+
+        return crop_image(image, target, min_x, min_y, new_width, new_height)
+
+
+class TestingMergePred(nn.Module):
+    def __init__(self, split_at=0.6):
+        super().__init__()
+        self.split_at = split_at
+
+    def forward(self, image, target):
+        image_part = target['image_part']
+        if image_part == 0:
+            return image, target
+
+        new_height, new_width = image.height, image.width
+        min_x, min_y = 0, 0
+        if image.height > image.width:
+            new_height = int(self.split_at * image.height)
+            _, p1 = crop_image(image, copy.deepcopy(target), min_x, min_y, new_width, new_height)
+
+            min_x, min_y = 0, image.height - new_height
+            _, p2 = crop_image(image, target, min_x, min_y, new_width, new_height)
+            p2['boxes'][:, 0] += 5
+            p2['boxes'][:, 2] -= 10
+            merge_prediction(image, p1, p2, (min_x, min_y))
+
+        elif image.width > image.height:
+            new_width = int(self.split_at * image.width)
+            _, p1 = crop_image(image, copy.deepcopy(target), min_x, min_y, new_width, new_height)
+
+            min_x, min_y = image.width - new_width, 0
+
+            _, p2 = crop_image(image, target, min_x, min_y, new_width, new_height)
+            merge_prediction(image, p1, p2, (min_x, min_y))
+
         else:
             return image, target
 
@@ -351,3 +397,39 @@ class CustomiseGeneralizedRCNNTransform(GeneralizedRCNNTransform):
             letter_boxes = resize_boxes(letter_boxes, (h, w), image.shape[-2:])
             target['letter_boxes'] = letter_boxes
         return image, target
+
+
+def merge_prediction(predictions_1, predictions_2, predictions_2_start_point, iou_threshold=0.3, additional_keys=()):
+    boxes_1 = predictions_1['boxes']
+    boxes_2 = predictions_2['boxes']
+
+    # Firstly, shift the coordinates of boxes_2 to the same space as boxes_1
+    boxes_2_shifted = shift_coordinates(boxes_2, -predictions_2_start_point[0], -predictions_2_start_point[1])
+
+    # compute the IoU between the two sets of bounding boxes
+    iou = torchvision.ops.box_iou(boxes_1, boxes_2_shifted)
+
+    # find the indices of the overlapping bounding boxes
+    overlapping_indices = torch.where(iou > iou_threshold)
+
+    b1_overlapped = boxes_1[overlapping_indices[0]]
+    b2_overlapped = boxes_2_shifted[overlapping_indices[1]]
+    b1_overlapped_size = (b1_overlapped[:, 3] - b1_overlapped[:, 1]) * (b1_overlapped[:, 2] - b1_overlapped[:, 0])
+    b2_overlapped_size = (b2_overlapped[:, 3] - b2_overlapped[:, 1]) * (b2_overlapped[:, 2] - b2_overlapped[:, 0])
+    b1_lt_b2 = torch.less_equal(b1_overlapped_size, b2_overlapped_size)
+
+    b1_remove = overlapping_indices[0][b1_lt_b2]
+    b2_remove = overlapping_indices[1][torch.logical_not(b1_lt_b2)]
+
+    boxes = tensor_delete(boxes_1, b1_remove)
+    boxes = torch.cat([boxes, tensor_delete(boxes_2_shifted, b2_remove)], dim=0)
+
+    output = {}
+    for key in additional_keys:
+        val = tensor_delete(predictions_1[key], b1_remove)
+        val = torch.cat([val, tensor_delete(predictions_2[key], b2_remove)])
+        output[val] = val
+
+    output['boxes'] = boxes
+    return output
+

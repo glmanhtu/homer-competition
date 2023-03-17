@@ -13,7 +13,8 @@ from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import wb_utils
 from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperator, ResizingImageOperator, \
-    RegionPredictionOperator, FinalOperator
+    RegionPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, RegionsCropAndRescaleOperator, \
+    SplitRegionOperator, LetterDetectionOperator
 from utils.misc import display_terminal_eval
 
 args = TrainOptions().parse()
@@ -34,13 +35,10 @@ class Trainer:
         self._working_dir = os.path.join(args.checkpoints_dir, args.name)
         self._region_model = ModelsFactory.get_model(args, 'region_detection', self._working_dir, is_train=False,
                                                      device=device, dropout=args.dropout)
-        self._region_model.load()
+        self._region_model.load(without_optimiser=True)
         self._letter_model = ModelsFactory.get_model(args, 'letter_detection', self._working_dir, is_train=False,
                                                      device=device, dropout=args.dropout)
-        self._letter_model.load()
-
-    def _predict_letters(self, image, regions, region_scales):
-        return []
+        self._letter_model.load(without_optimiser=True)
 
     def test(self, ds):
         val_start_time = time.time()
@@ -53,20 +51,32 @@ class Trainer:
         coco = convert_to_coco_api(ds, lambda x: x)
         coco_evaluator = CocoEvaluator(coco, ["bbox"])
 
-        logging_imgs = []
         to_pil_img = torchvision.transforms.ToPILImage()
+        logging_imgs = []
+
+        # NOTE: The operators below should be read from bottom up
+
+        # Operators for localising letters inside each papyrus regions
+        letter_predictor = LetterDetectionOperator(FinalOperator(), self._letter_model)
+        letter_predictor = SplittingOperator(letter_predictor)
+        letter_predictor = SplitRegionOperator(letter_predictor, args.p2_image_size)
+        letter_predictor = SplittingOperator(letter_predictor)
+        letter_predictor = RegionsCropAndRescaleOperator(letter_predictor, args.ref_box_height)
+
+        # Operators for detecting papyrus regions and estimating box height
         predictor = RegionPredictionOperator(FinalOperator(), self._region_model)
         predictor = ResizingImageOperator(predictor, args.image_size)
         predictor = PaddingImageOperator(predictor, padding_size=10)
+        predictor = BranchingOperator(predictor, letter_predictor)
         # predict_regions_operator = VisualizeImagesOperator(predict_regions_operator)
+        predictor = SplittingOperator(predictor)
         predictor = LongRectangleCropOperator(predictor)
 
-        for image, targets in ds:
+        for image, target in ds:
             pil_img = to_pil_img(image)
-            region_predictions, letter_scales = predictor(pil_img)
-            predictions = self._predict_letters(pil_img, region_predictions, letter_scales)
-            outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in predictions]
-            res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+            predictions = predictor(pil_img)
+            outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in [predictions]]
+            res = {target["image_id"].item(): output for target, output in zip([target], outputs)}
             coco_evaluator.update(res)
 
             for i in range(len(outputs)):

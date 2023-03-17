@@ -27,7 +27,7 @@ ref_box_height = 48
 #         ], p=0.5)]),
 # ])
 
-dataset = PapyrusP2Dataset(args.dataset, is_training=True, image_size=800, ref_box_size=ref_box_height)
+dataset = PapyrusP2Dataset(args.dataset, is_training=False, image_size=800, ref_box_size=ref_box_height)
 
 colour_map = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
               "#C895C5", "#320033", "#FF6832", "#66E1D3", "#CFCDAC", "#D0AC94", "#7ED379", "#012C58"]

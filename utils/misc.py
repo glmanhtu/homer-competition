@@ -1,5 +1,5 @@
+import math
 import time
-import torch.nn.functional as F
 import torch
 from scipy.stats import pearsonr
 
@@ -121,3 +121,11 @@ class MetricLogging:
             result[f'{key}/loss'] = loss_scale
             result[f'{key}/pcc'] = pcc[0]
         return result
+
+
+def split_region(width, height, size):
+    n_rows = math.ceil(width / size)
+    n_cols = math.ceil(height / size)
+    return n_rows, n_cols
+
+

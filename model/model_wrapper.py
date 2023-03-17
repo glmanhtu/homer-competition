@@ -35,10 +35,11 @@ class ModelWrapper:
                                           wd=self._args.weight_decay)
         self.lr_scheduler = Scheduler().get(self._args.lr_policy, self._optimizer, step_size=self._args.lr_decay_epochs)
 
-    def load(self):
+    def load(self, without_optimiser=False):
         # load feature extractor
         self._load_network(self._model)
-        self._load_optimizer(self._optimizer)
+        if not without_optimiser:
+            self._load_optimizer(self._optimizer)
 
     def existing(self):
         return self._check_model()

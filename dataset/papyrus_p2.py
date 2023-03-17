@@ -1,4 +1,3 @@
-import math
 import os
 
 import torch
@@ -6,13 +5,8 @@ import torchvision
 
 from dataset.papyrus import PapyrusDataset
 from utils import misc
+from utils.misc import split_region
 from utils.transforms import Compose, RegionImageCropAndRescale, CropAndPad, ImageTransformCompose, ToTensor
-
-
-def split_region(width, height, size):
-    n_rows = math.ceil(width / size)
-    n_cols = math.ceil(height / size)
-    return n_rows, n_cols
 
 
 class PapyrusP2Dataset(PapyrusDataset):
