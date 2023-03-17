@@ -1,13 +1,14 @@
 import math
-
+import torch.nn.functional as F
 import matplotlib
 import numpy as np
+import torch
 import torchvision.transforms
 from PIL import Image
 from matplotlib import pyplot as plt, patches
 from utils.transforms import shift_coordinates, merge_prediction
+from utils.visualising import visualise_boxes
 
-matplotlib.use('TkAgg')
 
 
 class ChainOperator:
@@ -90,11 +91,11 @@ class LongRectangleCropOperator(ChainOperator):
     def backward(self, data, all_start_points):
         all_predictions = None
         for predictions, start_points in zip(data, all_start_points):
+            predictions['boxes'] = shift_coordinates(predictions['boxes'], -start_points[0], -start_points[1])
             if all_predictions is None:
                 all_predictions = predictions
             else:
-                all_predictions = merge_prediction(all_predictions, predictions, start_points,
-                                                   additional_keys=('labels', 'scores'))
+                all_predictions = merge_prediction(all_predictions, predictions, additional_keys=('labels', 'scores'))
 
         return all_predictions
 
@@ -117,8 +118,8 @@ class RegionPredictionOperator(ChainOperator):
 
     def backward(self, prediction, addition):
         regions, scales = prediction['boxes'], prediction['extra_head_pred']
-        box_heights = scales * (regions[:, 3] - regions[:, 1])
-        return regions, box_heights
+        prediction['box_height'] = scales.view(-1) * (regions[:, 3] - regions[:, 1])
+        return prediction
 
 
 class ResizingImageOperator(ChainOperator):
@@ -136,9 +137,10 @@ class ResizingImageOperator(ChainOperator):
         resized_img = image.resize((int(image.width * factor), int(image.height * factor)))
         return resized_img, factor
 
-    def backward(self, data, factor):
-        region, box_height = data
-        return region / factor, box_height / factor
+    def backward(self, prediction, factor):
+        prediction['boxes'] /= factor
+        prediction['box_height'] /= factor
+        return prediction
 
 
 class LetterDetectionOperator(ChainOperator):
@@ -170,7 +172,7 @@ class SplitRegionOperator(ChainOperator):
         big_img_w, big_img_h = n_cols * self.image_size, n_rows * self.image_size
         big_img_w = max((big_img_w - image.width) // 2 + image.width, self.image_size)
         big_img_h = max((big_img_h - image.height) // 2 + image.height, self.image_size)
-        new_img = Image.new('RGB', (big_img_w, big_img_h), color=(self.fill, self.fill, self.fill))
+        new_img = Image.new('RGB', (big_img_w, big_img_h), color=self.fill)
         x, y = (int(new_img.width - image.width) // 2, int(new_img.height - image.height) // 2)
 
         new_img.paste(image, (x, y))
@@ -192,11 +194,11 @@ class SplitRegionOperator(ChainOperator):
 
         all_predictions = None
         for predictions, start_points in zip(data, all_start_points):
+            predictions['boxes'] = shift_coordinates(predictions['boxes'], -start_points[0], -start_points[1])
             if all_predictions is None:
                 all_predictions = predictions
             else:
-                all_predictions = merge_prediction(all_predictions, predictions, start_points,
-                                                   additional_keys=('labels', 'scores'))
+                all_predictions = merge_prediction(all_predictions, predictions, additional_keys=('labels', 'scores'))
 
         all_predictions['boxes'] = shift_coordinates(all_predictions['boxes'], start_point[0], start_point[1])
         return all_predictions
@@ -216,25 +218,34 @@ class RegionsCropAndRescaleOperator(ChainOperator):
         self.ref_box_height = ref_box_height
 
     def forward(self, data):
-        image, (regions, box_heights) = data
+        image, prediction = data
         out_images = []
         scales = []
-        for region, box_height in zip(regions, box_heights):
-            new_img = image.crop((int(region[0]), int(region[1]), int(region[2]), int(region[3])))
+        for region, box_height in zip(prediction['boxes'], prediction['box_height']):
+            crop_img = image.crop((int(region[0]), int(region[1]), int(region[2]), int(region[3])))
             scale = self.ref_box_height / box_height.cpu().item()
-            new_img = new_img.resize((int(image.width * scale), int(image.height * scale)))
+            new_img = crop_img.resize((int(image.width * scale), int(image.height * scale)))
             out_images.append(new_img)
-            scales.append(scale)
-        return out_images, (scales, regions)
+            scales.append((new_img.width / crop_img.width, new_img.height / crop_img.height))
+        return out_images, (scales, prediction['boxes'])
 
     def backward(self, data, addition):
         scales, regions = addition
-        result = []
+        all_predictions = None
         for scale, region, prediction in zip(scales, regions, data):
-            prediction['boxes'] /= scale
-            prediction['boxes'] = shift_coordinates(prediction['boxes'], region[0], region[1])
-            result.append(prediction)
-        return result
+            scale_w, scale_h = scale
+            prediction['boxes'][:, 0] /= scale_w
+            prediction['boxes'][:, 2] /= scale_w
+            prediction['boxes'][:, 1] /= scale_h
+            prediction['boxes'][:, 3] /= scale_h
+            prediction['boxes'] = shift_coordinates(prediction['boxes'], -int(region[0]), -int(region[1]))
+
+            if all_predictions is None:
+                all_predictions = prediction
+            else:
+                all_predictions = merge_prediction(all_predictions, prediction, additional_keys=('labels', 'scores'))
+
+        return all_predictions
 
 
 class BranchingOperator(ChainOperator):
@@ -277,10 +288,10 @@ class PaddingImageOperator(ChainOperator):
 
         return result, (left, top)
 
-    def backward(self, data, start_point):
-        region, box_height = data
+    def backward(self, prediction, start_point):
         x, y = start_point
-        return shift_coordinates(region, x, y), box_height
+        prediction['boxes'] = shift_coordinates(prediction['boxes'], x, y).type(torch.int64)
+        return prediction
 
 
 class VisualizeImagesOperator(ChainOperator):

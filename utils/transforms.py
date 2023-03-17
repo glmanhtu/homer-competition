@@ -399,21 +399,18 @@ class CustomiseGeneralizedRCNNTransform(GeneralizedRCNNTransform):
         return image, target
 
 
-def merge_prediction(predictions_1, predictions_2, predictions_2_start_point, iou_threshold=0.3, additional_keys=()):
+def merge_prediction(predictions_1, predictions_2, iou_threshold=0.3, additional_keys=()):
     boxes_1 = predictions_1['boxes']
     boxes_2 = predictions_2['boxes']
 
-    # Firstly, shift the coordinates of boxes_2 to the same space as boxes_1
-    boxes_2_shifted = shift_coordinates(boxes_2, -predictions_2_start_point[0], -predictions_2_start_point[1])
-
     # compute the IoU between the two sets of bounding boxes
-    iou = torchvision.ops.box_iou(boxes_1, boxes_2_shifted)
+    iou = torchvision.ops.box_iou(boxes_1, boxes_2)
 
     # find the indices of the overlapping bounding boxes
     overlapping_indices = torch.where(iou > iou_threshold)
 
     b1_overlapped = boxes_1[overlapping_indices[0]]
-    b2_overlapped = boxes_2_shifted[overlapping_indices[1]]
+    b2_overlapped = boxes_2[overlapping_indices[1]]
     b1_overlapped_size = (b1_overlapped[:, 3] - b1_overlapped[:, 1]) * (b1_overlapped[:, 2] - b1_overlapped[:, 0])
     b2_overlapped_size = (b2_overlapped[:, 3] - b2_overlapped[:, 1]) * (b2_overlapped[:, 2] - b2_overlapped[:, 0])
     b1_lt_b2 = torch.less_equal(b1_overlapped_size, b2_overlapped_size)
@@ -422,13 +419,13 @@ def merge_prediction(predictions_1, predictions_2, predictions_2_start_point, io
     b2_remove = overlapping_indices[1][torch.logical_not(b1_lt_b2)]
 
     boxes = tensor_delete(boxes_1, b1_remove)
-    boxes = torch.cat([boxes, tensor_delete(boxes_2_shifted, b2_remove)], dim=0)
+    boxes = torch.cat([boxes, tensor_delete(boxes_2, b2_remove)], dim=0)
 
     output = {}
     for key in additional_keys:
         val = tensor_delete(predictions_1[key], b1_remove)
         val = torch.cat([val, tensor_delete(predictions_2[key], b2_remove)])
-        output[val] = val
+        output[key] = val
 
     output['boxes'] = boxes
     return output

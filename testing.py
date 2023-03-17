@@ -2,8 +2,10 @@ import os.path
 import os.path
 import time
 
+import matplotlib
 import torch
 import torchvision.transforms
+import tqdm
 
 import wandb
 from dataset import dataset_factory
@@ -16,6 +18,7 @@ from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperato
     RegionPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, RegionsCropAndRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator
 from utils.misc import display_terminal_eval
+from utils.visualising import visualise_boxes
 
 args = TrainOptions().parse()
 
@@ -72,9 +75,10 @@ class Trainer:
         predictor = SplittingOperator(predictor)
         predictor = LongRectangleCropOperator(predictor)
 
-        for image, target in ds:
+        for image, target in tqdm.tqdm(ds):
             pil_img = to_pil_img(image)
             predictions = predictor(pil_img)
+            # visualise_boxes(pil_img, predictions['boxes'])
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in [predictions]]
             res = {target["image_id"].item(): output for target, output in zip([target], outputs)}
             coco_evaluator.update(res)
