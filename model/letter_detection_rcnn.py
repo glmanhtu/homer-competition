@@ -1,5 +1,6 @@
 from torch import nn
 from torchvision.models import resnet18, ResNet18_Weights
+from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import _resnet_fpn_extractor
 from torchvision.models.detection.faster_rcnn import FastRCNNConvFCHead, _default_anchorgen, \
     FasterRCNN
@@ -14,8 +15,10 @@ class LetterDetectionRCNN(nn.Module):
         roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
 
         backbone = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1, progress=True)
-        backbone = _resnet_fpn_extractor(backbone, 5, norm_layer=nn.BatchNorm2d)
-        rpn_anchor_generator = _default_anchorgen()
+        backbone = _resnet_fpn_extractor(backbone, 5, returned_layers=[1, 2], norm_layer=nn.BatchNorm2d)
+        anchor_sizes = ((32,), (64,), (128,),)
+        aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
+        rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
         rpn_head = RPNHead(backbone.out_channels, rpn_anchor_generator.num_anchors_per_location()[0], conv_depth=2)
         box_head = FastRCNNConvFCHead(
             (backbone.out_channels, 14, 14), [256, 256], [1024], norm_layer=nn.BatchNorm2d
