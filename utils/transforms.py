@@ -403,17 +403,23 @@ def merge_prediction(predictions_1, predictions_2, iou_threshold=0.3, additional
     boxes_1 = predictions_1['boxes']
     boxes_2 = predictions_2['boxes']
 
+    scores_1 = predictions_1['scores']
+    scores_2 = predictions_2['scores']
+
     # compute the IoU between the two sets of bounding boxes
     iou = torchvision.ops.box_iou(boxes_1, boxes_2)
 
     # find the indices of the overlapping bounding boxes
     overlapping_indices = torch.where(iou > iou_threshold)
 
-    b1_overlapped = boxes_1[overlapping_indices[0]]
-    b2_overlapped = boxes_2[overlapping_indices[1]]
-    b1_overlapped_size = (b1_overlapped[:, 3] - b1_overlapped[:, 1]) * (b1_overlapped[:, 2] - b1_overlapped[:, 0])
-    b2_overlapped_size = (b2_overlapped[:, 3] - b2_overlapped[:, 1]) * (b2_overlapped[:, 2] - b2_overlapped[:, 0])
-    b1_lt_b2 = torch.less_equal(b1_overlapped_size, b2_overlapped_size)
+    # b1_overlapped = boxes_1[overlapping_indices[0]]
+    # b2_overlapped = boxes_2[overlapping_indices[1]]
+    # b1_overlapped_size = (b1_overlapped[:, 3] - b1_overlapped[:, 1]) * (b1_overlapped[:, 2] - b1_overlapped[:, 0])
+    # b2_overlapped_size = (b2_overlapped[:, 3] - b2_overlapped[:, 1]) * (b2_overlapped[:, 2] - b2_overlapped[:, 0])
+    # b1_lt_b2 = torch.less_equal(b1_overlapped_size, b2_overlapped_size)
+    b1_scores = scores_1[overlapping_indices[0]]
+    b2_scores = scores_2[overlapping_indices[1]]
+    b1_lt_b2 = torch.less_equal(b1_scores, b2_scores)
 
     b1_remove = overlapping_indices[0][b1_lt_b2]
     b2_remove = overlapping_indices[1][torch.logical_not(b1_lt_b2)]
