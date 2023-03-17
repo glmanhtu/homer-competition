@@ -18,7 +18,7 @@ class LetterDetectionRCNN(nn.Module):
         rpn_anchor_generator = _default_anchorgen()
         rpn_head = RPNHead(backbone.out_channels, rpn_anchor_generator.num_anchors_per_location()[0], conv_depth=2)
         box_head = FastRCNNConvFCHead(
-            (backbone.out_channels, 14, 14), [256, 256, 256, 256], [1024], norm_layer=nn.BatchNorm2d
+            (backbone.out_channels, 14, 14), [256, 256], [1024], norm_layer=nn.BatchNorm2d
         )
         all_classes = n_classes + 1     # +1 class for background
 
