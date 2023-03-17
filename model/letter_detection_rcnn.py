@@ -1,14 +1,14 @@
 import torchvision
 from torch import nn
-from torchvision.models.detection.anchor_utils import AnchorGenerator
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection.rpn import RPNHead
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FastRCNNConvFCHead
+from torchvision.ops import MultiScaleRoIAlign
 
 
 class LetterDetectionRCNN(nn.Module):
 
     def __init__(self, device, n_classes, img_size, dropout=0.5):
         super().__init__()
+        roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
         model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(pretrained=True,
                                                                                min_size=img_size,
                                                                                max_size=img_size,
@@ -35,6 +35,10 @@ class LetterDetectionRCNN(nn.Module):
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         all_classes = n_classes + 1     # +1 class for background
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, all_classes)
+        model.roi_heads.box_roi_pool = roi_pool
+        model.roi_heads.box_head = FastRCNNConvFCHead(
+            (model.backbone.out_channels, 14, 14), [256, 256, 256, 256], [1024], norm_layer=nn.BatchNorm2d
+        )
 
         self.network = model
         self.to(device)
