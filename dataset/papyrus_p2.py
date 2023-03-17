@@ -18,7 +18,6 @@ def split_region(width, height, size):
 class PapyrusP2Dataset(PapyrusDataset):
 
     def __init__(self, dataset_path: str, is_training, image_size, ref_box_size, transforms=None):
-        self.im_size = image_size
         self.ref_box_size = ref_box_size
         super().__init__(dataset_path, is_training, image_size, transforms=transforms)
 
@@ -58,7 +57,7 @@ class PapyrusP2Dataset(PapyrusDataset):
                     box_size = (boxes[:, 3] - boxes[:, 1]).mean()
                     scale = (self.ref_box_size / box_size).item()
                     region_width, region_height = p['width'] * scale, p['height'] * scale
-                    n_cols, n_rows = split_region(region_width, region_height, self.im_size)
+                    n_cols, n_rows = split_region(region_width, region_height, self.image_size)
                     for col in range(n_cols):
                         for row in range(n_rows):
                             ids.append((i, [idx, n_cols, n_rows, col, row]))
