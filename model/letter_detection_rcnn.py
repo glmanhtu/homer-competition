@@ -10,6 +10,7 @@ class LetterDetectionRCNN(nn.Module):
         super().__init__()
         roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
         model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size,
+                                                                        trainable_backbone_layers=5,
                                                                         max_size=img_size, rpn_batch_size_per_image=256,
                                                                         box_batch_size_per_image=512,
                                                                         box_nms_thresh=0.5, box_score_thresh=0.3,
