@@ -9,16 +9,12 @@ class LetterDetectionRCNN(nn.Module):
     def __init__(self, device, n_classes, img_size, dropout=0.5):
         super().__init__()
         roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(pretrained=True,
-                                                                               min_size=img_size,
-                                                                               max_size=img_size,
-                                                                               rpn_batch_size_per_image=256,
-                                                                               box_batch_size_per_image=512,
-                                                                               box_nms_thresh=0.4,
-                                                                               box_score_thresh=0.4,
-                                                                        box_fg_iou_thresh=0.7,
-                                                                        box_bg_iou_thresh=0.5,
-                                                                               box_detections_per_img=320)
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size,
+                                                                        max_size=img_size, rpn_batch_size_per_image=256,
+                                                                        box_batch_size_per_image=512,
+                                                                        box_nms_thresh=0.5, box_score_thresh=0.3,
+                                                                        box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
+                                                                        box_detections_per_img=320)
 
         # anchor_sizes = (
         #                    (
