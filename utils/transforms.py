@@ -80,8 +80,8 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     target['labels'] = labels
     target['regions'] = regions
     target['region_labels'] = region_labels
-    target['area'] = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-    target['region_area'] = (regions[:, 3] - regions[:, 1]) * (regions[:, 2] - regions[:, 0])
+    target['area'] = compute_area(boxes)
+    target['region_area'] = compute_area(regions)
     target['iscrowd'] = torch.zeros((labels.shape[0],), dtype=torch.int64)
     return new_img, target
 
@@ -308,12 +308,25 @@ class PaddingImage(nn.Module):
         return result, target
 
 
+def compute_area(boxes):
+    return (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+
+
 def resize_sample(image, target, factor):
     raw_image = image.resize((int(image.width * factor), int(image.height * factor)))
-    target['boxes'] = target['boxes'] * factor
-    target['regions'] = target['regions'] * factor
-    target['region_area'] = target['region_area'] * factor
-    target['area'] = target['area'] * factor
+    factor_w = raw_image.width / image.width
+    factor_h = raw_image.height / image.height
+    target['boxes'][:, 0] *= factor_w
+    target['boxes'][:, 1] *= factor_h
+    target['boxes'][:, 2] *= factor_w
+    target['boxes'][:, 3] *= factor_h
+
+    target['regions'][:, 0] *= factor_w
+    target['regions'][:, 1] *= factor_h
+    target['regions'][:, 2] *= factor_w
+    target['regions'][:, 3] *= factor_h
+    target['region_area'] = compute_area(target['regions'])
+    target['area'] = compute_area(target['boxes'])
     return raw_image, target
 
 

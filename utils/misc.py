@@ -126,6 +126,6 @@ class MetricLogging:
 def split_region(width, height, size):
     n_rows = math.ceil(height / size)
     n_cols = math.ceil(width / size)
-    return n_rows, n_cols
+    return n_cols, n_rows
 
 
