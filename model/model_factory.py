@@ -11,8 +11,8 @@ class ModelsFactory:
     @staticmethod
     def get_model(args, mode, working_dir, is_train, device, dropout=0.4):
         if mode == 'region_detection':
-            model = RegionDetectionRCNN(device, 2, args.image_size, dropout=dropout)
+            model = RegionDetectionRCNN(args.p1_arch, device, 2, args.image_size, dropout=dropout)
         else:
-            model = LetterDetectionRCNN(device, len(mapping.keys()), args.p2_image_size, dropout=dropout)
+            model = LetterDetectionRCNN(args.p2_arch, device, len(mapping.keys()), args.p2_image_size, dropout=dropout)
         model = ModelWrapper(args, mode, working_dir, model, is_train, device)
         return model

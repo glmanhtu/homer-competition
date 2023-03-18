@@ -2,7 +2,7 @@ import torch
 import torchvision
 from torch import nn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_MobileNet_V3_Large_FPN_Weights, \
-    TwoMLPHead
+    TwoMLPHead, fasterrcnn_mobilenet_v3_large_fpn, fasterrcnn_resnet50_fpn_v2
 from torchvision.ops import MultiScaleRoIAlign
 
 from model import extra_roi_heads
@@ -12,15 +12,19 @@ from utils.transforms import CustomiseGeneralizedRCNNTransform
 
 class RegionDetectionRCNN(nn.Module):
 
-    def __init__(self, device, n_classes, img_size, dropout=0.5):
+    def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()
         roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
         extra_head = BoxAvgSizeHead(256, roi_pool, num_classes=n_classes, dropout=dropout)
+        if arch == 'mobinet':
+            model = fasterrcnn_mobilenet_v3_large_fpn(pretrained=True, min_size=img_size, max_size=img_size,
+                                                      box_score_thresh=0.5)
+        elif arch == 'resnet50':
+            model = fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size, max_size=img_size,
+                                               box_score_thresh=0.5)
+        else:
+            raise Exception(f'Arch {arch} is not implemented')
 
-        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(pretrained=True,
-                                                                               min_size=img_size,
-                                                                               max_size=img_size,
-                                                                               box_score_thresh=0.5)
         roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads, extra_head, BoxSizeCriterion())
         model.roi_heads = roi_heads_extra
         model.transform = CustomiseGeneralizedRCNNTransform.from_origin(model.transform)
@@ -91,24 +95,3 @@ class BoxAvgSizeHead(nn.Module):
         x = self.dropout(x)
         x = self.head(x)
         return self.predictor(x)
-
-
-if __name__ == '__main__':
-    device = torch.device('cpu')
-    model = RegionDetectionRCNN(device=device, n_classes=2, img_size=625)
-    images, boxes = torch.rand(4, 3, 4682, 2451), torch.rand(4, 11, 4)
-    boxes[:, :, 2:4] = boxes[:, :, 0:2] + boxes[:, :, 2:4]
-    labels = torch.ones((4, 11), dtype=torch.int64)
-    avg_box_scale = torch.randint(1, 5, (4, 11)).type(torch.float32) / 4.
-    images = list(image for image in images)
-    targets = []
-    for i in range(len(images)):
-        d = {'boxes': boxes[i], 'labels': labels[i], 'avg_box_scale': avg_box_scale[i]}
-        targets.append(d)
-    output = model(images, targets)
-    print(output)
-
-    model.eval()
-    x = [torch.rand(3, 851, 685), torch.rand(3, 500, 400)]
-    output = model(x)
-    print('')
