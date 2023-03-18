@@ -155,10 +155,10 @@ class LetterDetectionOperator(ChainOperator):
         super().__init__(next_operator)
         self.letter_model = letter_model
         self.to_tensor = torchvision.transforms.ToTensor()
-        self.img = None
+        # self.img = None
 
     def forward(self, image):
-        self.img = image
+        # self.img = image
         predictions = self.letter_model.forward([self.to_tensor(image)])
         return predictions[0], None
 
@@ -179,8 +179,8 @@ class SplitRegionOperator(ChainOperator):
 
         # First create a big image that contains the whole fragement
         big_img_w, big_img_h = n_cols * self.image_size, n_rows * self.image_size
-        big_img_w = max((big_img_w - image.width) // 2 + image.width, self.image_size)
-        big_img_h = max((big_img_h - image.height) // 2 + image.height, self.image_size)
+        big_img_w = max((big_img_w - image.width) // 5 + image.width, self.image_size)
+        big_img_h = max((big_img_h - image.height) // 5 + image.height, self.image_size)
         new_img = Image.new('RGB', (big_img_w, big_img_h), color=self.fill)
         x, y = (int(new_img.width - image.width) // 2, int(new_img.height - image.height) // 2)
 
@@ -213,9 +213,9 @@ class SplitRegionOperator(ChainOperator):
         return all_predictions
 
     def split_region(self, width, height, size):
-        n_rows = width / size
+        n_rows = height / size
         n_rows = math.ceil(n_rows if n_rows < 1 else n_rows + 0.5)
-        n_cols = height / size
+        n_cols = width / size
         n_cols = math.ceil(n_cols if n_cols < 1 else n_cols + 0.5)
         return n_rows, n_cols
 

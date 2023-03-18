@@ -124,8 +124,8 @@ class CropAndPad(nn.Module):
 
         # First create a big image that contains the whole fragement
         big_img_w, big_img_h = n_cols * self.image_size, n_rows * self.image_size
-        big_img_w = max((big_img_w - image.width) // 2 + image.width, self.image_size)
-        big_img_h = max((big_img_h - image.height) // 2 + image.height, self.image_size)
+        big_img_w = max((big_img_w - image.width) // 5 + image.width, self.image_size)
+        big_img_h = max((big_img_h - image.height) // 5 + image.height, self.image_size)
         new_img = Image.new('RGB', (big_img_w, big_img_h), color=(self.fill, self.fill, self.fill))
         x, y = (int(new_img.width - image.width) // 2, int(new_img.height - image.height) // 2)
         if self.with_randomness:
