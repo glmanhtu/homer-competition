@@ -164,7 +164,7 @@ class Trainer:
             coco_evaluator.update(res)
             for i in range(len(outputs)):
                 scale_preds = None if args.mode != 'region_detection' else outputs[i]['extra_head_pred']
-                letter_boxes = None if args.mode != 'region_detection' else outputs[i]['letter_boxes']
+                letter_boxes = None if args.mode != 'region_detection' else targets[i]['letter_boxes']
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                               outputs[i]['labels'].type(torch.int64).numpy(),
                                               outputs[i]['scores'].numpy(), scale_preds, letter_boxes)
