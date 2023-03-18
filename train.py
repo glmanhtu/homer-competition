@@ -143,7 +143,7 @@ class Trainer:
         self._model.set_eval()
         cpu_device = torch.device("cpu")
 
-        convert_target_fn = lambda x: x if args.mode != 'region_detection' else convert_region_target
+        convert_target_fn = None if args.mode != 'region_detection' else convert_region_target
 
         coco = convert_to_coco_api(val_loader.dataset, convert_target_fn)
         iou_types = ["bbox"]
@@ -155,16 +155,16 @@ class Trainer:
             images, targets = batch
             region_predictions = self._model.forward(images)
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
-            region_targets = [convert_target_fn(x) for x in targets]
-            res = {target["image_id"].item(): output for target, output in zip(region_targets, outputs)}
-            coco_evaluator.update(res)
 
             if args.mode == 'region_detection':
-                self._validate_box_height_prediction(outputs, region_targets, metric_logging)
+                targets = [convert_target_fn(x) for x in targets]
+                self._validate_box_height_prediction(outputs, targets, metric_logging)
 
+            res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+            coco_evaluator.update(res)
             for i in range(len(outputs)):
-                scale_preds = None if 'extra_head_pred' not in outputs[i] else outputs[i]['extra_head_pred']
-                letter_boxes = None if 'letter_boxes' not in outputs[i] else outputs[i]['letter_boxes']
+                scale_preds = None if args.mode != 'region_detection' else outputs[i]['extra_head_pred']
+                letter_boxes = None if args.mode != 'region_detection' else outputs[i]['letter_boxes']
                 img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                               outputs[i]['labels'].type(torch.int64).numpy(),
                                               outputs[i]['scores'].numpy(), scale_preds, letter_boxes)

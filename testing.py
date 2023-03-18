@@ -51,7 +51,7 @@ class Trainer:
 
         cpu_device = torch.device("cpu")
 
-        coco = convert_to_coco_api(ds, lambda x: x)
+        coco = convert_to_coco_api(ds)
         coco_evaluator = CocoEvaluator(coco, ["bbox"])
 
         to_pil_img = torchvision.transforms.ToPILImage()

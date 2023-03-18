@@ -153,7 +153,7 @@ def convert_to_coco_api(ds, target_transform=None):
         # find better way to get target
         # targets = ds.get_annotations(img_idx)
         img, targets = ds[img_idx]
-        if target_transform:
+        if target_transform is not None:
             targets = target_transform(targets)
         image_id = targets["image_id"].item()
         img_dict = {}
