@@ -29,9 +29,6 @@ class RegionDetectionRCNN(nn.Module):
         model.roi_heads = roi_heads_extra
         model.transform = CustomiseGeneralizedRCNNTransform.from_origin(model.transform)
 
-        model.load_state_dict(FasterRCNN_MobileNet_V3_Large_FPN_Weights.COCO_V1.get_state_dict(progress=False),
-                              strict=False)
-
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
 
