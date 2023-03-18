@@ -114,8 +114,8 @@ class MetricLogging:
         result = {}
         scale_criterion = torch.nn.SmoothL1Loss()
         for key in self.actual:
-            pred = torch.stack(self.predictions[key], dim=0)
-            actual = torch.stack(self.actual[key], dim=0)
+            pred = torch.cat(self.predictions[key], dim=0).view(-1)
+            actual = torch.cat(self.actual[key], dim=0).view(-1)
             pcc = pearsonr(pred.numpy(), actual.numpy())
             loss_scale = scale_criterion(pred, actual)
             result[f'{key}/loss'] = loss_scale
