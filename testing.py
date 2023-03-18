@@ -78,7 +78,7 @@ class Trainer:
         for image, target in tqdm.tqdm(ds):
             pil_img = to_pil_img(image)
             predictions = predictor(pil_img)
-            # visualise_boxes(pil_img, predictions['boxes'])
+            visualise_boxes(pil_img, predictions['boxes'])
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in [predictions]]
             res = {target["image_id"].item(): output for target, output in zip([target], outputs)}
             coco_evaluator.update(res)

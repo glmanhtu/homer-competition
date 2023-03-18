@@ -135,11 +135,17 @@ class ResizingImageOperator(ChainOperator):
             factor = self.image_max_size / image.width
 
         resized_img = image.resize((int(image.width * factor), int(image.height * factor)))
-        return resized_img, factor
+        factor_w = resized_img.width / image.width
+        factor_h = resized_img.height / image.height
+        return resized_img, (factor_w, factor_h)
 
     def backward(self, prediction, factor):
-        prediction['boxes'] /= factor
-        prediction['box_height'] /= factor
+        factor_w, factor_h = factor
+        prediction['boxes'][:, 0] /= factor_w
+        prediction['boxes'][:, 1] /= factor_h
+        prediction['boxes'][:, 2] /= factor_w
+        prediction['boxes'][:, 3] /= factor_h
+        prediction['box_height'] /= factor_h
         return prediction
 
 
@@ -149,12 +155,15 @@ class LetterDetectionOperator(ChainOperator):
         super().__init__(next_operator)
         self.letter_model = letter_model
         self.to_tensor = torchvision.transforms.ToTensor()
+        self.img = None
 
     def forward(self, image):
+        self.img = image
         predictions = self.letter_model.forward([self.to_tensor(image)])
         return predictions[0], None
 
     def backward(self, prediction, addition):
+        # visualise_boxes(self.img, prediction['boxes'])
         return prediction
 
 
@@ -224,7 +233,7 @@ class RegionsCropAndRescaleOperator(ChainOperator):
         for region, box_height in zip(prediction['boxes'], prediction['box_height']):
             crop_img = image.crop((int(region[0]), int(region[1]), int(region[2]), int(region[3])))
             scale = self.ref_box_height / box_height.cpu().item()
-            new_img = crop_img.resize((int(image.width * scale), int(image.height * scale)))
+            new_img = crop_img.resize((int(crop_img.width * scale), int(crop_img.height * scale)))
             out_images.append(new_img)
             scales.append((new_img.width / crop_img.width, new_img.height / crop_img.height))
         return out_images, (scales, prediction['boxes'])
@@ -290,5 +299,5 @@ class PaddingImageOperator(ChainOperator):
 
     def backward(self, prediction, start_point):
         x, y = start_point
-        prediction['boxes'] = shift_coordinates(prediction['boxes'], x, y).type(torch.int64)
+        prediction['boxes'] = shift_coordinates(prediction['boxes'], x, y)
         return prediction
