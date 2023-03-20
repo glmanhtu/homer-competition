@@ -42,6 +42,10 @@ class Trainer:
         self._letter_model = ModelsFactory.get_model(args, 'letter_detection', self._working_dir, is_train=False,
                                                      device=device, dropout=args.dropout)
         self._letter_model.load(without_optimiser=True)
+        self._current_step = 0
+
+    def set_current_step(self, step):
+        self._current_step = step
 
     def test(self, ds):
         val_start_time = time.time()
@@ -100,7 +104,7 @@ class Trainer:
             f'test/mAP_0.5': coco_eval[1],
             f'test/mAP_0.75': coco_eval[2],
         }
-        wandb.log(val_dict)
+        wandb.log(val_dict, step=self._current_step)
         display_terminal_eval(val_start_time, 0, val_dict)
 
         return val_dict, logging_imgs
@@ -112,5 +116,6 @@ if __name__ == "__main__":
     dataset = dataset_factory.get_dataset(args.dataset, args.mode, is_training=False,
                                           image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
                                           ref_box_size=args.ref_box_height)
-
+    if args.resume:
+        trainer.set_current_step(wandb.run.step)
     trainer.test(dataset)
