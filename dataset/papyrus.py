@@ -28,7 +28,7 @@ eval_set = {'P_21215_R_3_001.jpg', 'P_06869_Z_54ff_R_001.jpg', 'P_06869_Z_602ff_
             'P_Flor_2_107v.jpg', 'P_21185_R_3_001.jpg', 'p_bas_27.b.r.jpg', 'P_Koln_I_26_inv_71a_r.JPG',
             'P_17211_R_2_001.jpg', 'P_07507_R_001.jpg', 'BNU_Pgr1242_r.jpg'}
 
-mapping = {
+letter_mapping = {
     7: 1,
     8: 2,
     9: 3,
@@ -86,7 +86,7 @@ class PapyrusDataset(Dataset):
         for annotation in self.data['annotations']:
 
             try:
-                labels.setdefault(annotation['image_id'], []).append(mapping[int(annotation['category_id'])])
+                labels.setdefault(annotation['image_id'], []).append(letter_mapping[int(annotation['category_id'])])
             except:
                 continue
             x, y, w, h = annotation['bbox']

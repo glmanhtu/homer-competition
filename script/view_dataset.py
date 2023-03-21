@@ -15,7 +15,7 @@ matplotlib.use('MacOSX')
 
 from dataset.papyrus import PapyrusDataset
 
-args = TrainOptions().parse()
+args = TrainOptions(save_conf=False).parse()
 
 
 transforms = Compose([

@@ -4,16 +4,16 @@ import torch
 import torchvision
 from matplotlib import pyplot as plt, patches
 
-from dataset.papyrus import mapping
+from dataset.papyrus import letter_mapping
 from dataset.papyrus_p2 import PapyrusP2Dataset
 from options.train_options import TrainOptions
 from utils import misc
 from utils.transforms import Compose, ImageTransformCompose, RegionImageCropAndRescale, CropAndPad
 
 matplotlib.use('MacOSX')
-class_id_to_label_letter = {v: str(k) for k, v in mapping.items()}
+class_id_to_label_letter = {v: str(k) for k, v in letter_mapping.items()}
 
-args = TrainOptions().parse()
+args = TrainOptions(save_conf=False).parse()
 ref_box_height = 48
 
 # transforms = Compose([

@@ -1,13 +1,13 @@
 import torchvision.transforms
 import wandb
 
-from dataset.papyrus import mapping
+from dataset.papyrus import letter_mapping
 from utils import misc
 
 display_ids = {"Fragment": 1}
 # this is a revese map of the integer class id to the string class label
 class_id_to_label = {int(v): k for k, v in display_ids.items()}
-class_id_to_label_letter = {v: str(k) for k, v in mapping.items()}
+class_id_to_label_letter = {v: str(k) for k, v in letter_mapping.items()}
 
 
 def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, v_scales=None, letter_boxes=None):

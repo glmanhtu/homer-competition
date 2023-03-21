@@ -11,7 +11,7 @@ def split_region(width, height, size):
     return n_rows, n_cols
 
 
-class PapyrusTestDataset(PapyrusDataset):
+class PapyrusValDataset(PapyrusDataset):
 
     def __init__(self, dataset_path: str, is_training):
         super().__init__(dataset_path, is_training, image_size=None, transforms=None)
