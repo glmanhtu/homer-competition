@@ -169,16 +169,18 @@ class Trainer:
         predictor = SplittingOperator(predictor)
         predictor = RegionsCropAndRescaleOperator(predictor, args.ref_box_height)
 
-        for image, target in tqdm.tqdm(val_loader.dataset):
+        for image, target in val_loader.dataset:
             pil_img = to_pil_img(image)
-            box_heights = []
+            box_heights, regions = [], []
             for region_box in target['regions']:
                 boxes = misc.filter_boxes(region_box, target['boxes'])
-                box_heights.append((boxes[:, 3] - boxes[:, 1]).mean())
+                if len(boxes) > 0:
+                    box_heights.append((boxes[:, 3] - boxes[:, 1]).mean())
+                    regions.append(region_box)
 
             # We will use the regions and box_height from GT to evaluate for now
             # These information should be predicted by the p1 network
-            region_info = {'boxes': target['regions'], 'box_height': torch.stack(box_heights)}
+            region_info = {'boxes': torch.stack(regions), 'box_height': torch.stack(box_heights)}
             predictions = predictor((pil_img, region_info))
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in [predictions]]
             res = {target["image_id"].item(): output for target, output in zip([target], outputs)}
