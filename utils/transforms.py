@@ -127,10 +127,11 @@ class CropAndPad(nn.Module):
         big_img_w = max((big_img_w - image.width) // 5 + image.width, self.image_size)
         big_img_h = max((big_img_h - image.height) // 5 + image.height, self.image_size)
         new_img = Image.new('RGB', (big_img_w, big_img_h), color=(self.fill, self.fill, self.fill))
-        x, y = (int(new_img.width - image.width) // 2, int(new_img.height - image.height) // 2)
+        dwidth, dheight = new_img.width - image.width, new_img.height - image.height
+        x, y = (dwidth // 2, dheight // 2)
         if self.with_randomness:
-            x = 0 if new_img.width == image.width else random.randint(0, new_img.width - image.width)
-            y = 0 if new_img.height == image.height else random.randint(0, new_img.height - image.height)
+            x = 0 if dwidth < 1 else random.randint(0, dwidth)
+            y = 0 if dheight < 1 else random.randint(0, dheight)
 
         new_img.paste(image, (x, y))
 
