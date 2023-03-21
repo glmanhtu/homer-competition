@@ -3,7 +3,8 @@ import os.path
 import time
 
 import torch
-from scipy.stats import pearsonr
+import torchvision
+import tqdm
 from torch.utils.data import DataLoader
 
 import wandb
@@ -13,6 +14,8 @@ from frcnn.coco_utils import convert_to_coco_api
 from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
+from utils.chain_operators import SplittingOperator, RegionsCropAndRescaleOperator, \
+    SplitRegionOperator, LetterDetectionOperator, FinalOperator
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging, \
     MetricLogging
 
@@ -26,6 +29,8 @@ wandb.init(group=args.group,
            resume=args.resume,
            config=args,
            mode=args.wb_mode)
+
+cpu_device = torch.device("cpu")
 
 
 class Trainer:
@@ -67,6 +72,7 @@ class Trainer:
 
     def train(self):
         best_m_ap = 0.
+
         for i_epoch in range(1, args.nepochs + 1):
             epoch_start_time = time.time()
             self._model.get_current_lr()
@@ -78,8 +84,7 @@ class Trainer:
             if not i_epoch % args.n_epochs_per_eval == 0:
                 continue
 
-            val_dict, log_imgs = self._validate(i_epoch, self.data_loader_val)
-
+            val_dict, _ = self.validate(i_epoch, self.data_loader_val)
             current_m_ap = val_dict['val/mAP_0.5:0.95']
             if current_m_ap > best_m_ap:
                 print("mAP_0.5:0.95 improved, from {:.4f} to {:.4f}".format(best_m_ap, current_m_ap))
@@ -87,7 +92,6 @@ class Trainer:
                 for key in val_dict:
                     wandb.run.summary[f'best_model/{key}'] = val_dict[key]
                 self._model.save()  # save best model
-                wandb.log({'val/prediction': log_imgs}, step=self._current_step)
 
             # print epoch info
             time_epoch = time.time() - epoch_start_time
@@ -99,7 +103,7 @@ class Trainer:
                 break
 
         self.load_pretrained_model()
-        _, log_imgs = self._validate(args.nepochs + 1, self.data_loader_val, log_first_img=False)
+        _, log_imgs = self.validate(args.nepochs + 1, self.data_loader_val, log_predictions=True)
         wandb.log({'val/all_predictions': log_imgs}, step=self._current_step)
 
     def _train_epoch(self, i_epoch):
@@ -121,47 +125,17 @@ class Trainer:
                 wandb.log(save_dict, step=self._current_step)
                 display_terminal(iter_start_time, i_epoch, i_train_batch, len(self.data_loader_train), save_dict)
 
-    @staticmethod
-    def add_features(img_features, images, features):
-        for image_name, features in zip(images, features):
-            feature_cpu = features.cpu()
-            if image_name not in img_features:
-                img_features[image_name] = []
-            img_features[image_name].append(feature_cpu)
-
-    def _validate_box_height_prediction(self, outputs, region_targets, metric_logging: MetricLogging):
-        for output, target in zip(outputs, region_targets):
-            for scale_pred, region_box in zip(output['extra_head_pred'], output['boxes']):
-                boxes = misc.filter_boxes(region_box, target['letter_boxes'])
-                if len(boxes) > 0:
-                    scale = (boxes[:, 3] - boxes[:, 1]).mean() / (region_box[3] - region_box[1])
-                    metric_logging.update('scale', scale, scale_pred)
-
-    def _validate(self, i_epoch, val_loader, mode='val', log_first_img=True):
-        val_start_time = time.time()
-        # set model to eval
+    def validate(self, i_epoch, val_loader, mode='val', log_predictions=False):
         self._model.set_eval()
-        cpu_device = torch.device("cpu")
+        if args.mode == 'region_detection':
+            val_fn = self.region_detection_validate
+        elif args.mode == 'letter_detection':
+            val_fn = self.letter_detection_validation
+        else:
+            raise Exception(f'Train mode {args.mode} is not implemented!')
 
-        convert_target_fn = None if args.mode != 'region_detection' else convert_region_target
-
-        coco = convert_to_coco_api(val_loader.dataset, convert_target_fn)
-        iou_types = ["bbox"]
-        coco_evaluator = CocoEvaluator(coco, iou_types)
-
-        logging_imgs = []
-        metric_logging = MetricLogging()
-        for i_train_batch, batch in enumerate(val_loader):
-            images, targets = batch
-            region_predictions = self._model.forward(images)
-            outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
-
-            if args.mode == 'region_detection':
-                targets = [convert_target_fn(x) for x in targets]
-                self._validate_box_height_prediction(outputs, targets, metric_logging)
-
-            res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
-            coco_evaluator.update(res)
+        val_start_time = time.time()
+        coco_evaluator, val_dict, logging_imgs = val_fn(val_loader, log_predictions)
 
         coco_evaluator.synchronize_between_processes()
         coco_evaluator.accumulate()
@@ -169,16 +143,88 @@ class Trainer:
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
 
-        val_dict = {
+        val_dict.update({
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],
-        }
-        val_dict.update(metric_logging.get_report())
+        })
         wandb.log(val_dict, step=self._current_step)
         display_terminal_eval(val_start_time, i_epoch, val_dict)
 
         return val_dict, logging_imgs
+
+    def letter_detection_validation(self, val_loader, log_predictions=False):
+        coco = convert_to_coco_api(val_loader.dataset)
+        coco_evaluator = CocoEvaluator(coco, ["bbox"])
+
+        to_pil_img = torchvision.transforms.ToPILImage()
+        logging_imgs = []
+
+        # NOTE: The operators below should be read from bottom up
+
+        # Operators for localising letters inside each papyrus regions
+        predictor = LetterDetectionOperator(FinalOperator(), self._model)
+        predictor = SplittingOperator(predictor)
+        predictor = SplitRegionOperator(predictor, args.p2_image_size)
+        predictor = SplittingOperator(predictor)
+        predictor = RegionsCropAndRescaleOperator(predictor, args.ref_box_height)
+
+        for image, target in tqdm.tqdm(val_loader.dataset):
+            pil_img = to_pil_img(image)
+            box_heights = []
+            for region_box in target['regions']:
+                boxes = misc.filter_boxes(region_box, target['boxes'])
+                box_heights.append((boxes[:, 3] - boxes[:, 1]).mean())
+
+            # We will use the regions and box_height from GT to evaluate for now
+            # These information should be predicted by the p1 network
+            region_info = {'boxes': target['regions'], 'box_height': torch.stack(box_heights)}
+            predictions = predictor((pil_img, region_info))
+            outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in [predictions]]
+            res = {target["image_id"].item(): output for target, output in zip([target], outputs)}
+            coco_evaluator.update(res)
+
+            if log_predictions:
+                for i in range(len(outputs)):
+                    img = wb_utils.bounding_boxes(image, outputs[i]['boxes'].numpy(),
+                                                  outputs[i]['labels'].type(torch.int64).numpy(),
+                                                  outputs[i]['scores'].numpy())
+                    logging_imgs.append(img)
+
+        return coco_evaluator, {}, logging_imgs
+
+    def region_detection_validate(self, val_loader, log_predictions=False):
+
+        coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
+        coco_evaluator = CocoEvaluator(coco, ["bbox"])
+
+        logging_imgs = []
+        metric_logging = MetricLogging()
+        for i_train_batch, batch in enumerate(val_loader):
+            images, targets = batch
+            region_predictions = self._model.forward(images)
+            outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
+            targets = [convert_region_target(x) for x in targets]
+
+            for output, target in zip(outputs, targets):
+                for scale_pred, region_box in zip(output['extra_head_pred'], output['boxes']):
+                    boxes = misc.filter_boxes(region_box, target['letter_boxes'])
+                    if len(boxes) > 0:
+                        scale = (boxes[:, 3] - boxes[:, 1]).mean() / (region_box[3] - region_box[1])
+                        metric_logging.update('scale', scale, scale_pred)
+
+            res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+            coco_evaluator.update(res)
+
+            if log_predictions:
+                for i in range(len(outputs)):
+                    img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
+                                                  outputs[i]['labels'].type(torch.int64).numpy(),
+                                                  outputs[i]['scores'].numpy(), outputs[i]['extra_head_pred'],
+                                                  targets[i]['letter_boxes'])
+                    logging_imgs.append(img)
+
+        return coco_evaluator, metric_logging.get_report(), logging_imgs
 
 
 if __name__ == "__main__":
