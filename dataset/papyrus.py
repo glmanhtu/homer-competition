@@ -60,6 +60,8 @@ class PapyrusDataset(Dataset):
 
     def __init__(self, dataset_path: str, is_training, image_size, transforms=None):
         self.image_size = image_size
+        self.dataset_path = dataset_path
+        self.is_training = is_training
         self.transforms = transforms if transforms is not None else self.get_transforms(is_training)
         images = glob.glob(os.path.join(dataset_path, '**', '*.jpg'), recursive=True)
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.JPG'), recursive=True))
@@ -101,7 +103,10 @@ class PapyrusDataset(Dataset):
 
         self.imgs = self.split_image(images)
 
-        self.dataset_path = dataset_path
+    def get_bln_id(self, idx):
+        image_path, part = self.imgs[idx]
+        image = self.data['images'][image_path]
+        return image['bln_id']
 
     def __len__(self):
         return len(self.imgs)
@@ -145,8 +150,8 @@ class PapyrusDataset(Dataset):
         return self.__get_item_by_idx(idx)
 
     def __get_item_by_idx(self, idx):
-        image_path, part = self.imgs[idx]
-        image = self.data['images'][image_path]
+        image_idx, part = self.imgs[idx]
+        image = self.data['images'][image_idx]
         img_url = image['img_url'].split('/')
         image_file = img_url[-1]
         image_folder = img_url[-2]

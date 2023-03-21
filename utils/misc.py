@@ -62,7 +62,6 @@ def convert_region_target(item):
         'image_id': item['image_id']
     }
 
-
 def filter_boxes(region_box, boxes):
     """
         get only the boxes that are lying inside the region_box

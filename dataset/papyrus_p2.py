@@ -6,7 +6,8 @@ import torchvision
 from dataset.papyrus import PapyrusDataset
 from utils import misc
 from utils.misc import split_region
-from utils.transforms import Compose, RegionImageCropAndRescale, CropAndPad, ImageTransformCompose, ToTensor
+from utils.transforms import Compose, RegionImageCropAndRescale, CropAndPad, ImageTransformCompose, ToTensor, \
+    LongRectangleCrop
 
 
 class PapyrusP2Dataset(PapyrusDataset):
@@ -30,12 +31,14 @@ class PapyrusP2Dataset(PapyrusDataset):
             ])
         else:
             return Compose([
-                RegionImageCropAndRescale(ref_box_height=self.ref_box_size),
-                CropAndPad(image_size=self.image_size, with_randomness=False),
+                LongRectangleCrop(),
                 ToTensor()
             ])
 
     def split_image(self, images):
+        if not self.is_training:
+            # In evaluation mode, we use only split image method on p1
+            return super().split_image(images)
         ids = []
         for i, image in enumerate(self.data['images']):
             image_name = os.path.basename(image['file_name'])
