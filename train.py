@@ -166,7 +166,9 @@ class Trainer:
                 if len(boxes) > 0:
                     box_heights.append((boxes[:, 3] - boxes[:, 1]).mean())
                     regions.append(region_box)
-
+            if len(regions) == 0:
+                continue
+                
             # We will use the regions and box_height from GT to evaluate for now
             # These information should be predicted by the p1 network
             region_info = {'boxes': torch.stack(regions), 'box_height': torch.stack(box_heights)}
