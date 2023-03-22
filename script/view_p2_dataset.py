@@ -16,17 +16,6 @@ class_id_to_label_letter = {v: str(k) for k, v in letter_mapping.items()}
 args = TrainOptions(save_conf=False).parse()
 ref_box_height = 48
 
-# transforms = Compose([
-#     RegionImageCropAndRescale(ref_box_height=ref_box_height),
-#     # RandomCropImage(min_factor=0.4, max_factor=1, min_iou_papyrus=0.2),
-#     CropAndPad(image_size=800),
-#     # FixedImageResize(args.image_size),
-#     ImageTransformCompose([
-#         torchvision.transforms.RandomApply([
-#             torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1)
-#         ], p=0.5)]),
-# ])
-
 dataset = PapyrusP2Dataset(args.dataset, is_training=False, image_size=800, ref_box_size=ref_box_height)
 
 colour_map = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",

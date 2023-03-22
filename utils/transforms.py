@@ -1,15 +1,13 @@
-import copy
 import random
-from typing import List, Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple
 
 import numpy as np
 import torch
 import torchvision
+import torchvision.ops.boxes as bops
 import torchvision.transforms
 from PIL import Image
-from matplotlib import pyplot as plt, patches
 from torch import nn, Tensor
-import torchvision.ops.boxes as bops
 from torchvision.models.detection.transform import GeneralizedRCNNTransform, _resize_image_and_masks, resize_boxes, \
     resize_keypoints
 
@@ -182,43 +180,6 @@ class LongRectangleCrop(nn.Module):
         return crop_image(image, target, min_x, min_y, new_width, new_height)
 
 
-class TestingMergePred(nn.Module):
-    def __init__(self, split_at=0.6):
-        super().__init__()
-        self.split_at = split_at
-
-    def forward(self, image, target):
-        image_part = target['image_part']
-        if image_part == 0:
-            return image, target
-
-        new_height, new_width = image.height, image.width
-        min_x, min_y = 0, 0
-        if image.height > image.width:
-            new_height = int(self.split_at * image.height)
-            _, p1 = crop_image(image, copy.deepcopy(target), min_x, min_y, new_width, new_height)
-
-            min_x, min_y = 0, image.height - new_height
-            _, p2 = crop_image(image, target, min_x, min_y, new_width, new_height)
-            p2['boxes'][:, 0] += 5
-            p2['boxes'][:, 2] -= 10
-            merge_prediction(image, p1, p2, (min_x, min_y))
-
-        elif image.width > image.height:
-            new_width = int(self.split_at * image.width)
-            _, p1 = crop_image(image, copy.deepcopy(target), min_x, min_y, new_width, new_height)
-
-            min_x, min_y = image.width - new_width, 0
-
-            _, p2 = crop_image(image, target, min_x, min_y, new_width, new_height)
-            merge_prediction(image, p1, p2, (min_x, min_y))
-
-        else:
-            return image, target
-
-        return crop_image(image, target, min_x, min_y, new_width, new_height)
-
-
 class RandomCropImage(nn.Module):
     def __init__(self, min_factor, max_factor, min_iou_papyrus=0.2, max_time_tries=10):
         super().__init__()
@@ -250,36 +211,6 @@ class RandomCropImage(nn.Module):
             return image, target
 
         return self.forward(image, target, n_times + 1)
-
-
-class RandomPaddingImage(nn.Module):
-    def __init__(self, min_factor=0.05, max_factor=0.3, color=(255, 255, 255)):
-        super().__init__()
-        self.min_factor = min_factor
-        self.max_factor = max_factor
-        self.color = color
-
-    def forward(self, image, target):
-        padding_size = random.randint(int(self.min_factor * 100), int(self.max_factor * 100)) / 100.
-        padding_size = padding_size / len(target['regions'])
-        right = int(padding_size * image.width)
-        left = int(padding_size * image.width)
-        top = int(padding_size * image.height)
-        bottom = int(padding_size * image.height)
-
-        width, height = image.size
-
-        new_width = width + right + left
-        new_height = height + top + bottom
-
-        result = Image.new(image.mode, (new_width, new_height), self.color)
-
-        result.paste(image, (left, top))
-
-        target['boxes'] = shift_coordinates(target['boxes'], -left, -top)
-        target['regions'] = shift_coordinates(target['regions'], -left, -top)
-
-        return result, target
 
 
 class PaddingImage(nn.Module):
@@ -426,11 +357,6 @@ def merge_prediction(predictions_1, predictions_2, iou_threshold=0.3, additional
     # find the indices of the overlapping bounding boxes
     overlapping_indices = torch.where(iou > iou_threshold)
 
-    # b1_overlapped = boxes_1[overlapping_indices[0]]
-    # b2_overlapped = boxes_2[overlapping_indices[1]]
-    # b1_overlapped_size = (b1_overlapped[:, 3] - b1_overlapped[:, 1]) * (b1_overlapped[:, 2] - b1_overlapped[:, 0])
-    # b2_overlapped_size = (b2_overlapped[:, 3] - b2_overlapped[:, 1]) * (b2_overlapped[:, 2] - b2_overlapped[:, 0])
-    # b1_lt_b2 = torch.less_equal(b1_overlapped_size, b2_overlapped_size)
     b1_scores = scores_1[overlapping_indices[0]]
     b2_scores = scores_2[overlapping_indices[1]]
     b1_lt_b2 = torch.less_equal(b1_scores, b2_scores)

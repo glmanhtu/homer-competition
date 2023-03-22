@@ -1,14 +1,9 @@
 import math
-import torch.nn.functional as F
-import matplotlib
-import numpy as np
-import torch
+
 import torchvision.transforms
 from PIL import Image
-from matplotlib import pyplot as plt, patches
-from utils.transforms import shift_coordinates, merge_prediction
-from utils.visualising import visualise_boxes
 
+from utils.transforms import shift_coordinates, merge_prediction
 
 
 class ChainOperator:
