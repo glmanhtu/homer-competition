@@ -22,9 +22,9 @@ cpu_device = torch.device("cpu")
 
 
 class Trainer:
-    def __init__(self, fold=1, k_fold=5):
+    def __init__(self, args, fold=1, k_fold=5):
         device = torch.device('cuda' if args.cuda else 'cpu')
-
+        self.args = args
         self._working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
         os.makedirs(self._working_dir, exist_ok=True)
         self._model = ModelsFactory.get_model(args, args.mode, self._working_dir, is_train=True, device=device,
@@ -62,15 +62,15 @@ class Trainer:
     def train(self):
         best_m_ap = 0.
 
-        for i_epoch in range(1, args.nepochs + 1):
+        for i_epoch in range(1, self.args.nepochs + 1):
             epoch_start_time = time.time()
             self._model.get_current_lr()
             # train epoch
             self._train_epoch(i_epoch)
-            if args.lr_policy == 'step':
+            if self.args.lr_policy == 'step':
                 self._model.lr_scheduler.step()
 
-            if not i_epoch % args.n_epochs_per_eval == 0:
+            if not i_epoch % self.args.n_epochs_per_eval == 0:
                 continue
 
             val_dict, _ = self.validate(i_epoch, self.data_loader_val)
@@ -85,14 +85,14 @@ class Trainer:
             # print epoch info
             time_epoch = time.time() - epoch_start_time
             print('End of epoch %d / %d \t Time Taken: %d sec (%d min or %d h)' %
-                  (i_epoch, args.nepochs, time_epoch, time_epoch / 60, time_epoch / 3600))
+                  (i_epoch, self.args.nepochs, time_epoch, time_epoch / 60, time_epoch / 3600))
 
             if self.early_stop.should_stop(1 - current_m_ap):
                 print(f'Early stop at epoch {i_epoch}')
                 break
 
         self.load_pretrained_model()
-        _, log_imgs = self.validate(args.nepochs + 1, self.data_loader_val, log_predictions=True)
+        _, log_imgs = self.validate(self.args.nepochs + 1, self.data_loader_val, log_predictions=True)
         wandb.log({'val/all_predictions': log_imgs}, step=self._current_step)
 
     def _train_epoch(self, i_epoch):
@@ -108,7 +108,7 @@ class Trainer:
             # update epoch info
             self._current_step += 1
 
-            if self._current_step % args.save_freq_iter == 0:
+            if self._current_step % self.args.save_freq_iter == 0:
                 save_dict = losses.get_report()
                 losses.clear()
                 wandb.log(save_dict, step=self._current_step)
@@ -116,12 +116,12 @@ class Trainer:
 
     def validate(self, i_epoch, val_loader, mode='val', log_predictions=False):
         self._model.set_eval()
-        if args.mode == 'region_detection':
+        if self.args.mode == 'region_detection':
             val_fn = self.region_detection_validate
-        elif args.mode == 'letter_detection':
+        elif self.args.mode == 'letter_detection':
             val_fn = self.letter_detection_validation
         else:
-            raise Exception(f'Train mode {args.mode} is not implemented!')
+            raise Exception(f'Train mode {self.args.mode} is not implemented!')
 
         val_start_time = time.time()
         coco_evaluator, val_dict, logging_imgs = val_fn(val_loader, log_predictions)
@@ -154,9 +154,9 @@ class Trainer:
         # Operators for localising letters inside each papyrus regions
         predictor = LetterDetectionOperator(FinalOperator(), self._model)
         predictor = SplittingOperator(predictor)
-        predictor = SplitRegionOperator(predictor, args.p2_image_size)
+        predictor = SplitRegionOperator(predictor, self.args.p2_image_size)
         predictor = SplittingOperator(predictor)
-        predictor = RegionsCropAndRescaleOperator(predictor, args.ref_box_height)
+        predictor = RegionsCropAndRescaleOperator(predictor, self.args.ref_box_height)
 
         for image, target in val_loader.dataset:
             pil_img = to_pil_img(image)
@@ -219,21 +219,21 @@ class Trainer:
 
 
 if __name__ == "__main__":
-    args = TrainOptions().parse()
-    wandb.init(group=args.group,
-               name=args.name,
-               project=args.wb_project,
-               entity=args.wb_entity,
-               resume=args.resume,
-               config=args,
-               mode=args.wb_mode)
+    train_args = TrainOptions().parse()
+    wandb.init(group=train_args.group,
+               name=train_args.name,
+               project=train_args.wb_project,
+               entity=train_args.wb_entity,
+               resume=train_args.resume,
+               config=train_args,
+               mode=train_args.wb_mode)
 
-    trainer = Trainer()
+    trainer = Trainer(train_args)
     if trainer.is_trained():
         trainer.set_current_step(wandb.run.step)
         trainer.load_pretrained_model()
 
-    if args.resume or not trainer.is_trained():
+    if train_args.resume or not trainer.is_trained():
         trainer.train()
 
     trainer.load_pretrained_model()

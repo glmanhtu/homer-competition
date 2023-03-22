@@ -19,7 +19,7 @@ cpu_device = torch.device("cpu")
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
 
 
-class Trainer:
+class Predictor:
     def __init__(self):
         self._working_dir = os.path.join(args.checkpoints_dir, args.name)
         self._region_model = ModelsFactory.get_model(args, 'region_detection', self._working_dir, is_train=False,
@@ -73,11 +73,11 @@ class Trainer:
 
 
 if __name__ == "__main__":
-    trainer = Trainer()
+    net_predictor = Predictor()
     dataset = dataset_factory.get_dataset(args.dataset, args.mode, is_training=False,
                                           image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
                                           ref_box_size=args.ref_box_height)
-    predictions = trainer.predict_all(dataset)
+    predictions = net_predictor.predict_all(dataset)
     with open(os.path.join("template.json")) as f:
         json_output = json.load(f)
 

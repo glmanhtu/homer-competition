@@ -15,7 +15,7 @@ if __name__ == "__main__":
                          config=args,
                          mode=args.wb_mode)
 
-        trainer = Trainer(fold=fold, k_fold=args.k_fold)
+        trainer = Trainer(args, fold=fold, k_fold=args.k_fold)
         if trainer.is_trained():
             trainer.load_pretrained_model()
 
