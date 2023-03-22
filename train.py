@@ -18,17 +18,6 @@ from utils.chain_operators import SplittingOperator, RegionsCropAndRescaleOperat
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging, \
     MetricLogging
 
-args = TrainOptions().parse()
-
-
-wandb.init(group=args.group,
-           name=args.name,
-           project=args.wb_project,
-           entity=args.wb_entity,
-           resume=args.resume,
-           config=args,
-           mode=args.wb_mode)
-
 cpu_device = torch.device("cpu")
 
 
@@ -230,6 +219,15 @@ class Trainer:
 
 
 if __name__ == "__main__":
+    args = TrainOptions().parse()
+    wandb.init(group=args.group,
+               name=args.name,
+               project=args.wb_project,
+               entity=args.wb_entity,
+               resume=args.resume,
+               config=args,
+               mode=args.wb_mode)
+
     trainer = Trainer()
     if trainer.is_trained():
         trainer.set_current_step(wandb.run.step)
