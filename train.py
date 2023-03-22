@@ -37,6 +37,7 @@ class Trainer:
         device = torch.device('cuda' if args.cuda else 'cpu')
 
         self._working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
+        os.makedirs(self._working_dir, exist_ok=True)
         self._model = ModelsFactory.get_model(args, args.mode, self._working_dir, is_train=True, device=device,
                                               dropout=args.dropout)
 
