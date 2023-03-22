@@ -9,7 +9,7 @@ if __name__ == "__main__":
     for fold in range(args.k_fold):
         run = wandb.init(group=args.group,
                          name=args.name,
-                         tags=[f'fold_{fold}'],
+                         job_type=f'fold_{fold}',
                          project=args.wb_project,
                          entity=args.wb_entity,
                          resume=args.resume,
