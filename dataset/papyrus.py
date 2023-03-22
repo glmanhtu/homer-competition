@@ -3,30 +3,17 @@ import json
 import os
 import random
 
-import cv2
 import torch
 import torchvision
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
 
+from utils import misc
 from utils.exceptions import NoGTBoundingBox
 from utils.transforms import Compose, LongRectangleCrop, RandomCropImage, PaddingImage, FixedImageResize, \
     ImageTransformCompose, ToTensor
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-
-eval_set = {'P_21215_R_3_001.jpg', 'P_06869_Z_54ff_R_001.jpg', 'P_06869_Z_602ff_R_001.jpg', 'P_Koln_I_38.JPG',
-            'P_Oxy_6_949_equal_Graz_Ms._I_1954.jpg', 'G_31936_Pap.jpg', 'Brux_Inv_7188.jpg',
-            'P_Koln_I_23_inv_42_recto.JPG', 'P_Koln_I_21_inv_1030_verso.JPG', 'MS._Gr._class._g._49_(P)v.jpg',
-            'P_09813_R_001.jpg', 'P_06869_Z_131ff_R_001.jpg', 'P_Koln_IV_181.JPG', 'P_11761_R_4_001.jpg',
-            'P_Koln_I_21_inv_00046_c_d_verso.jpg', 'P_Koln_I_20.JPG', 'P_Koln_I_26_inv_71_b_c_r.JPG',
-            'Bodleian_Library_MS_Gr_class_a_1_P_1_10_00006_frame_6.jpg', 'G_26732_Pap.jpg', 'P_Laur_IV_129v.jpg',
-            'P_Koln_VII_300.jpg', 'Sorbonne_inv_2010.jpg', 'P_Oslo_3_66.jpg', 'G_31798_Pap_verso.jpg',
-            'Bodleian_Library_MS_Gr_class_a_1_P_1_10_00001_frame_1.jpg', 'P_11522_V_3_001.jpg', 'P_21242_R_001.jpg',
-            'P_Mich_inv_1210_1216a.jpg', 'P_CtYBR_inv_69.jpg', 'Brux_Inv_5937.jpg', 'P_Oxy_52_3663_f.jpg',
-            'P_Flor_2_107v.jpg', 'P_21185_R_3_001.jpg', 'p_bas_27.b.r.jpg', 'P_Koln_I_26_inv_71a_r.JPG',
-            'P_17211_R_2_001.jpg', 'P_07507_R_001.jpg', 'BNU_Pgr1242_r.jpg'}
 
 letter_mapping = {
     7: 1,
@@ -58,7 +45,7 @@ letter_mapping = {
 
 class PapyrusDataset(Dataset):
 
-    def __init__(self, dataset_path: str, is_training, image_size, transforms=None):
+    def __init__(self, dataset_path: str, is_training, image_size, transforms=None, fold=1, k_fold=5):
         self.image_size = image_size
         self.dataset_path = dataset_path
         self.is_training = is_training
@@ -67,10 +54,12 @@ class PapyrusDataset(Dataset):
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.JPG'), recursive=True))
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.png'), recursive=True))
         images = sorted([os.path.basename(x) for x in images])
+        folds = list(misc.chunks(images, k_fold))
         if is_training:
-            images = set([x for x in images if x not in eval_set])
+            del folds[fold]
+            images = misc.flatten(folds)
         else:
-            images = set([x for x in images if x in eval_set])
+            images = folds[fold]
 
         with open(os.path.join(dataset_path, "HomerCompTrainingReadCoco.json")) as f:
             self.data = json.load(f)

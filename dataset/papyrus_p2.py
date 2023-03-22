@@ -12,9 +12,9 @@ from utils.transforms import Compose, RegionImageCropAndRescale, CropAndPad, Ima
 
 class PapyrusP2Dataset(PapyrusDataset):
 
-    def __init__(self, dataset_path: str, is_training, image_size, ref_box_size, transforms=None):
+    def __init__(self, dataset_path: str, is_training, image_size, ref_box_size, transforms=None, fold=1, k_fold=5):
         self.ref_box_size = ref_box_size
-        super().__init__(dataset_path, is_training, image_size, transforms=transforms)
+        super().__init__(dataset_path, is_training, image_size, transforms=transforms, fold=fold, k_fold=k_fold)
 
     def get_transforms(self, is_training):
         if is_training:
