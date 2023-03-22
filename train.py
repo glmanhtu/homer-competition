@@ -4,7 +4,6 @@ import time
 
 import torch
 import torchvision
-import tqdm
 from torch.utils.data import DataLoader
 
 import wandb
@@ -34,22 +33,22 @@ cpu_device = torch.device("cpu")
 
 
 class Trainer:
-    def __init__(self):
+    def __init__(self, fold=1, k_fold=5):
         device = torch.device('cuda' if args.cuda else 'cpu')
 
-        self._working_dir = os.path.join(args.checkpoints_dir, args.name)
+        self._working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
         self._model = ModelsFactory.get_model(args, args.mode, self._working_dir, is_train=True, device=device,
                                               dropout=args.dropout)
 
         dataset_train = dataset_factory.get_dataset(args.dataset, args.mode, is_training=True,
                                                     image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
-                                                    ref_box_size=args.ref_box_height)
+                                                    ref_box_size=args.ref_box_height, fold=fold, k_fold=k_fold)
         self.data_loader_train = DataLoader(dataset_train, shuffle=True, num_workers=args.n_threads_train,
                                             collate_fn=misc.collate_fn, persistent_workers=True,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
         dataset_val = dataset_factory.get_dataset(args.dataset, args.mode, is_training=False,
                                                   image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
-                                                  ref_box_size=args.ref_box_height)
+                                                  ref_box_size=args.ref_box_height, fold=fold, k_fold=k_fold)
 
         self.data_loader_val = DataLoader(dataset_val, shuffle=True, num_workers=args.n_threads_test,
                                           persistent_workers=True, pin_memory=True,
