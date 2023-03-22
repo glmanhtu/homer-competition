@@ -8,8 +8,7 @@ if __name__ == "__main__":
     assert args.n_epochs_per_eval == args.nepochs, "In cross-validation, n_epochs_per_eval have to be equal to nepochs"
     for fold in range(args.k_fold):
         run = wandb.init(group=args.group,
-                         name=args.name,
-                         job_type=f'fold_{fold}',
+                         name=f'{args.name}_fold-{fold}',
                          project=args.wb_project,
                          entity=args.wb_entity,
                          resume=args.resume,
