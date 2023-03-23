@@ -21,7 +21,7 @@ class RegionDetectionRCNN(nn.Module):
                                                       box_score_thresh=0.5)
         elif arch == 'resnet50':
             model = fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size, max_size=img_size,
-                                               box_score_thresh=0.5, trainable_backbone_layers=2)
+                                               box_score_thresh=0.5)
         else:
             raise Exception(f'Arch {arch} is not implemented')
 
