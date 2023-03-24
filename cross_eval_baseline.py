@@ -54,6 +54,8 @@ mapping = {
     225: 24,
 }
 
+idx_to_letter = {v: k for k, v in mapping.items()}
+
 
 class HomerCompDataset(torch.utils.data.Dataset):
     def __init__(self, dataset_path, transforms=None, isTrain=False, fold=1, k_fold=5):
@@ -203,7 +205,7 @@ def val(args, fold, k_fold):
                 for box, label, score in zip(boxes, preds, scores):
                     annotation = dict()
                     annotation['image_id'] = image_id
-                    annotation['category_id'] = mapping[label.item()]
+                    annotation['category_id'] = idx_to_letter[label.item()]
                     annotation['bbox'] = [box[0].item() + j, box[1].item() + i, (box[2] - box[0]).item(),
                                           (box[3] - box[1]).item()]
                     annotation['score'] = score.item()
