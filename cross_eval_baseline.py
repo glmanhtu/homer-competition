@@ -166,7 +166,7 @@ def val(args, fold, k_fold):
     trans.append(T.ConvertImageDtype(torch.float))
     trans = T.Compose(trans)
 
-    dataset_test = HomerCompDataset(args.dataset, transforms=trans, isTrain=False)
+    dataset_test = HomerCompDataset(args.dataset, transforms=trans, isTrain=False, fold=fold, k_fold=k_fold)
 
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test, batch_size=1, shuffle=False, num_workers=4,
