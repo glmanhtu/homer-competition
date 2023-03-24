@@ -13,7 +13,7 @@ import torch
 import wandb
 from PIL import Image
 from PIL import ImageFile
-
+from torchvision import transforms
 from options.cross_val_options import CrossValOptions
 from utils import misc
 
@@ -23,6 +23,9 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import frcnn.transforms as T
 from frcnn.engine import train_one_epoch, evaluate
 import frcnn.utils as utils
+
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 
 mapping = {
     7: 1,
@@ -141,6 +144,125 @@ def get_transform(train):
     return T.Compose(transforms)
 
 
+def val(args, fold, k_fold):
+    working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
+    device = torch.device('cpu')
+    num_classes = 25
+
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    model.to(device)
+
+    checkpoint = torch.load(os.path.join(working_dir, "model_detection.pt"), map_location=device)
+
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
+
+    trans = []
+    trans.append(T.PILToTensor())
+    trans.append(T.ConvertImageDtype(torch.float))
+    trans = T.Compose(trans)
+
+    dataset_test = HomerCompDataset(args.dataset, transforms=trans, isTrain=False)
+
+    data_loader_test = torch.utils.data.DataLoader(
+        dataset_test, batch_size=1, shuffle=False, num_workers=4,
+        collate_fn=utils.collate_fn)
+
+    jFile = open(os.path.join("template.json"))
+    json_output = json.load(jFile)
+    jFile.close()
+
+    jFile = open(os.path.join(args.dataset, "HomerCompTrainingReadCoco.json"))
+    test_gt = json.load(jFile)
+    jFile.close()
+
+    img_ids = []
+
+    for images, targets in data_loader_test:
+
+        image = images[0]
+        idx = targets[0]['image_id'].item()
+
+        image_id = json_output['images'][dataset_test.imgs[idx]]['bln_id']
+        img_ids.append(image_id)
+
+        # Patch wise predictions
+        for i in range(0, image.shape[1], 672):
+            for j in range(0, image.shape[2], 672):
+                crop = transforms.functional.crop(image, i, j, 672, 672)
+                crop = torch.unsqueeze(crop, 0)
+                result = model(crop)
+                boxes = result[0]['boxes'].int()
+                scores = result[0]['scores']
+                preds = result[0]['labels']
+                if len(boxes) == 0:
+                    continue
+
+                for box, label, score in zip(boxes, preds, scores):
+                    annotation = dict()
+                    annotation['image_id'] = image_id
+                    annotation['category_id'] = mapping[label.item()]
+                    annotation['bbox'] = [box[0].item() + j, box[1].item() + i, (box[2] - box[0]).item(),
+                                          (box[3] - box[1]).item()]
+                    annotation['score'] = score.item()
+
+                    json_output['annotations'].append(annotation)
+
+    for annotation in list(test_gt['annotations']):
+        if annotation['image_id'] not in img_ids:
+            test_gt['annotations'].remove(annotation)
+
+    with open("gt.json", "w") as outfile:
+        json.dump(test_gt, outfile, indent=4)
+
+    with open("predictions.json", "w") as outfile:
+        json.dump(json_output, outfile, indent=4)
+
+    jFile = open(os.path.join("predictions.json"))
+    predictions = json.load(jFile)
+    jFile.close()
+
+    jFile = open(os.path.join("gt.json"))
+    gt = json.load(jFile)
+    jFile.close()
+
+    for annotation in list(gt['annotations']):
+        if annotation['tags']['BaseType'][0] == 'bt3':
+            gt['annotations'].remove(annotation)
+
+    for annotation in gt['annotations']:
+        annotation['iscrowd'] = 0
+
+    with open("gt_tmp.json", "w") as outfile:
+        json.dump(gt, outfile, indent=4)
+
+    with open("pr_tmp.json", "w") as outfile:
+        json.dump(predictions['annotations'], outfile, indent=4)
+
+    cocoGt = COCO('gt_tmp.json')
+    cocoDt = cocoGt.loadRes("pr_tmp.json")
+
+    os.remove('gt_tmp.json')
+    os.remove('pr_tmp.json')
+
+    cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    cocoEval.summarize()
+
+    val_dict = {
+        f'val/mAP_0.5:0.95': cocoEval.stats[0],
+        f'val/mAP_0.5': cocoEval.stats[1],
+        f'val/mAP_0.75': cocoEval.stats[2],
+    }
+
+    print(val_dict)
+
+    wandb.log(val_dict)
+
+
 def train(args, fold, k_fold):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
@@ -175,21 +297,12 @@ def train(args, fold, k_fold):
             lr_scheduler1.step()
         elif 9 < epoch < 50:
             lr_scheduler2.step()
-        coco_evaluator = evaluate(model, data_loader_test, device=device)
+        # coco_evaluator = evaluate(model, data_loader_test, device=device)
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
         }, os.path.join(working_dir, "model_detection.pt"))
-
-    coco_eval = coco_evaluator.coco_eval['bbox'].stats
-
-    val_dict = {
-        f'val/mAP_0.5:0.95': coco_eval[0],
-        f'val/mAP_0.5': coco_eval[1],
-        f'val/mAP_0.75': coco_eval[2],
-    }
-    wandb.log(val_dict)
 
 
 if __name__ == '__main__':
@@ -205,5 +318,6 @@ if __name__ == '__main__':
                          mode=args.wb_mode)
 
         train(args, fold, args.k_fold)
+        val(args, fold, args.k_fold)
 
         run.finish()
