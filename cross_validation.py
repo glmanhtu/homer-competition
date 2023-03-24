@@ -13,6 +13,7 @@ if __name__ == "__main__":
                          entity=args.wb_entity,
                          resume=args.resume,
                          config=args,
+                         settings=wandb.Settings(_disable_stats=True),
                          mode=args.wb_mode)
 
         trainer = Trainer(args, fold=fold, k_fold=args.k_fold)
