@@ -142,6 +142,8 @@ def get_transform(train):
 
 def train(args, fold, k_fold):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
+    os.makedirs(working_dir, exist_ok=True)
     num_classes = 25
     dataset = HomerCompDataset(args.dataset, transforms=get_transform(True), isTrain=True, fold=fold, k_fold=k_fold)
     val_set = HomerCompDataset(args.dataset, transforms=get_transform(False), isTrain=False, fold=fold, k_fold=k_fold)
@@ -168,14 +170,14 @@ def train(args, fold, k_fold):
         train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
         if epoch < 4:
             lr_scheduler1.step()
-        elif epoch > 9 and epoch < 50:
+        elif 9 < epoch < 50:
             lr_scheduler2.step()
         coco_evaluator = evaluate(model, data_loader_test, device=device)
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-        }, "model_detection.pt")
+        }, os.path.join(working_dir, "model_detection.pt"))
 
     coco_eval = coco_evaluator.coco_eval['bbox'].stats
 
