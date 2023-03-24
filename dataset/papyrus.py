@@ -1,28 +1,21 @@
 import glob
 import json
 import os
+import random
 
-import cv2
 import torch
+import torchvision
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
 
+from utils import misc
+from utils.exceptions import NoGTBoundingBox
+from utils.transforms import Compose, LongRectangleCrop, RandomCropImage, PaddingImage, FixedImageResize, \
+    ImageTransformCompose, ToTensor
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-
-eval_set = {'P_21215_R_3_001.jpg', 'P_06869_Z_54ff_R_001.jpg', 'P_06869_Z_602ff_R_001.jpg', 'P_Koln_I_38.JPG',
-            'P_Oxy_6_949_equal_Graz_Ms._I_1954.jpg', 'G_31936_Pap.jpg', 'Brux_Inv_7188.jpg',
-            'P_Koln_I_23_inv_42_recto.JPG', 'P_Koln_I_21_inv_1030_verso.JPG', 'MS._Gr._class._g._49_(P)v.jpg',
-            'P_09813_R_001.jpg', 'P_06869_Z_131ff_R_001.jpg', 'P_Koln_IV_181.JPG', 'P_11761_R_4_001.jpg',
-            'P_Koln_I_21_inv_00046_c_d_verso.jpg', 'P_Koln_I_20.JPG', 'P_Koln_I_26_inv_71_b_c_r.JPG',
-            'Bodleian_Library_MS_Gr_class_a_1_P_1_10_00006_frame_6.jpg', 'G_26732_Pap.jpg', 'P_Laur_IV_129v.jpg',
-            'P_Koln_VII_300.jpg', 'Sorbonne_inv_2010.jpg', 'P_Oslo_3_66.jpg', 'G_31798_Pap_verso.jpg',
-            'Bodleian_Library_MS_Gr_class_a_1_P_1_10_00001_frame_1.jpg', 'P_11522_V_3_001.jpg', 'P_21242_R_001.jpg',
-            'P_Mich_inv_1210_1216a.jpg', 'P_CtYBR_inv_69.jpg', 'Brux_Inv_5937.jpg', 'P_Oxy_52_3663_f.jpg',
-            'P_Flor_2_107v.jpg', 'P_21185_R_3_001.jpg', 'p_bas_27.b.r.jpg', 'P_Koln_I_26_inv_71a_r.JPG',
-            'P_17211_R_2_001.jpg', 'P_07507_R_001.jpg', 'BNU_Pgr1242_r.jpg'}
-
-mapping = {
+letter_mapping = {
     7: 1,
     8: 2,
     9: 3,
@@ -52,26 +45,85 @@ mapping = {
 
 class PapyrusDataset(Dataset):
 
-    def __init__(self, dataset_path: str, transforms, is_training):
-        self.transforms = transforms
+    def __init__(self, dataset_path: str, is_training, image_size, transforms=None, fold=1, k_fold=5):
+        self.image_size = image_size
+        self.dataset_path = dataset_path
+        self.is_training = is_training
+        self.transforms = transforms if transforms is not None else self.get_transforms(is_training)
         images = glob.glob(os.path.join(dataset_path, '**', '*.jpg'), recursive=True)
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.JPG'), recursive=True))
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.png'), recursive=True))
         images = sorted([os.path.basename(x) for x in images])
+        folds = list(misc.chunks(images, k_fold))
         if is_training:
-            images = set([x for x in images if x not in eval_set])
+            del folds[fold]
+            images = misc.flatten(folds)
         else:
-            images = set([x for x in images if x in eval_set])
+            images = folds[fold]
 
         with open(os.path.join(dataset_path, "HomerCompTrainingReadCoco.json")) as f:
             self.data = json.load(f)
 
         self.regions = {}
-        img_sizes = {}
         with open(os.path.join(dataset_path, "CompetitionTraining-export.json")) as f:
             regions = json.load(f)['assets']
             for key, region in regions.items():
                 self.regions.setdefault(region['asset']['name'], []).extend(region['regions'])
+
+        boxes = {}
+        labels = {}
+        for annotation in self.data['annotations']:
+
+            try:
+                labels.setdefault(annotation['image_id'], []).append(letter_mapping[int(annotation['category_id'])])
+            except:
+                continue
+            x, y, w, h = annotation['bbox']
+            xmin = x
+            xmax = x + w
+            ymin = y
+            ymax = y + h
+            boxes.setdefault(annotation['image_id'], []).append([xmin, ymin, xmax, ymax])
+
+        self.boxes, self.labels = {}, {}
+        for key in boxes:
+            self.boxes[key] = torch.as_tensor(boxes[key], dtype=torch.float32)
+            self.labels[key] = torch.as_tensor(labels[key], dtype=torch.int64)
+
+        self.imgs = self.split_image(images)
+
+    def get_bln_id(self, idx):
+        image_path, part = self.imgs[idx]
+        image = self.data['images'][image_path]
+        return image['bln_id']
+
+    def __len__(self):
+        return len(self.imgs)
+
+    def get_transforms(self, is_training):
+        if is_training:
+            return Compose([
+                LongRectangleCrop(),
+                RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
+                PaddingImage(padding_size=50),
+                FixedImageResize(self.image_size),
+                ImageTransformCompose([
+                    torchvision.transforms.RandomGrayscale(p=0.3),
+                    torchvision.transforms.RandomApply([
+                        torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
+                    ], p=0.5)
+                ]),
+                ToTensor()
+            ])
+        else:
+            return Compose([
+                LongRectangleCrop(),
+                PaddingImage(padding_size=50),
+                FixedImageResize(self.image_size),
+                ToTensor()
+            ])
+
+    def split_image(self, images):
         ids = []
         for i, image in enumerate(self.data['images']):
             if os.path.basename(image['file_name']) in images:
@@ -81,20 +133,14 @@ class PapyrusDataset(Dataset):
                     ids.append((i, 2))
                 else:
                     ids.append((i, 0))
-
-        self.imgs = ids
-        self.annotations = {}
-        for annotation in self.data['annotations']:
-            self.annotations.setdefault(annotation['image_id'], []).append(annotation)
-
-        self.dataset_path = dataset_path
-
-    def __len__(self):
-        return len(self.imgs)
+        return ids
 
     def __getitem__(self, idx):
-        image_path, part = self.imgs[idx]
-        image = self.data['images'][image_path]
+        return self.__get_item_by_idx(idx)
+
+    def __get_item_by_idx(self, idx):
+        image_idx, part = self.imgs[idx]
+        image = self.data['images'][image_idx]
         img_url = image['img_url'].split('/')
         image_file = img_url[-1]
         image_folder = img_url[-2]
@@ -113,27 +159,8 @@ class PapyrusDataset(Dataset):
             regions.append([xmin, ymin, xmax, ymax])
             region_labels.append(1)
 
-        boxes = []
-        labels = []
-        for annotation in self.annotations[image_id]:
-            try:
-                labels.append(mapping[int(annotation['category_id'])])
-            except:
-                continue
-            x, y, w, h = annotation['bbox']
-            xmin = x
-            xmax = x + w
-            ymin = y
-            ymax = y + h
-            boxes.append([xmin, ymin, xmax, ymax])
-
-        # convert everything into a torch.Tensor
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        avg_box_height = (boxes[:, 3] - boxes[:, 1])
-        avg_box_scale = avg_box_height.median()
-
-        # there is only one class
-        labels = torch.as_tensor(labels, dtype=torch.int64)
+        boxes = self.boxes[image_id].clone()
+        labels = self.labels[image_id].clone()
 
         regions = torch.as_tensor(regions, dtype=torch.float32)
         region_labels = torch.as_tensor(region_labels, dtype=torch.int64)
@@ -146,7 +173,6 @@ class PapyrusDataset(Dataset):
 
         target = {
             "boxes": boxes,
-            "avg_box_scale": avg_box_scale,
             "labels": labels,
             "regions": regions,
             "region_labels": region_labels,
@@ -160,7 +186,11 @@ class PapyrusDataset(Dataset):
         fname = os.path.join(src_folder, image_folder, image_file)
         with Image.open(fname) as f:
             img = f.convert('RGB')
-            if self.transforms is not None:
-                img, target = self.transforms(img, target)
+        if self.transforms is not None:
+            try:
+                return self.transforms(img, target)
+            except NoGTBoundingBox:
+                next_index = random.randint(0, len(self.imgs) - 1)
+                return self.__get_item_by_idx(next_index)
 
         return img, target

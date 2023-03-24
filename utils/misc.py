@@ -1,6 +1,7 @@
+import math
 import time
-import torch.nn.functional as F
 import torch
+from scipy.stats import pearsonr
 
 
 class EarlyStop:
@@ -20,6 +21,12 @@ class EarlyStop:
         if len(self.losses) - best_loss_pos <= self.n_epochs:
             return False
         return True
+
+
+def chunks(l, n):
+    """Yield n number of striped chunks from l."""
+    for i in range(0, n):
+        yield l[i::n]
 
 
 def map_location(cuda):
@@ -54,12 +61,44 @@ def collate_fn(batch):
 def convert_region_target(item):
     return {
         'boxes': item['regions'],
+        'letter_boxes': item['boxes'],
         'labels': item['region_labels'],
-        'avg_box_scale': item['avg_box_scale'],
         'iscrowd': torch.zeros(item['region_labels'].shape),
         'area': item['region_area'],
         'image_id': item['image_id']
     }
+
+def filter_boxes(region_box, boxes):
+    """
+        get only the boxes that are lying inside the region_box
+    """
+    invalid_letter_boxes = torch.logical_or(boxes[:, 0] < region_box[0], boxes[:, 2] > region_box[2])
+    invalid_letter_boxes = torch.logical_or(invalid_letter_boxes, boxes[:, 1] < region_box[1])
+    invalid_letter_boxes = torch.logical_or(invalid_letter_boxes, boxes[:, 3] > region_box[3])
+    return boxes[torch.logical_not(invalid_letter_boxes)]
+
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
+
+
+class LossLoging:
+
+    def __init__(self):
+        self.losses = {}
+
+    def update(self, all_losses):
+        for key in all_losses.keys():
+            self.losses.setdefault(key, []).append(all_losses[key].item())
+
+    def get_report(self):
+        result = {}
+        for key in self.losses:
+            result[key] = sum(self.losses[key]) / len(self.losses[key])
+        return result
+
+    def clear(self):
+        self.losses = {}
 
 
 class MetricLogging:
@@ -76,17 +115,22 @@ class MetricLogging:
         self.predictions[key].append(predicts.view(-1, 1))
         self.actual[key].append(actual.view(-1, 1))
 
-    def get_raw_data(self, key):
-        pred = torch.stack(self.predictions[key], dim=0)
-        actual = torch.stack(self.actual[key], dim=0)
-        return pred, actual
+    def get_report(self):
+        result = {}
+        scale_criterion = torch.nn.SmoothL1Loss()
+        for key in self.actual:
+            pred = torch.cat(self.predictions[key], dim=0).view(-1)
+            actual = torch.cat(self.actual[key], dim=0).view(-1)
+            pcc = pearsonr(pred.numpy(), actual.numpy())
+            loss_scale = scale_criterion(pred, actual)
+            result[f'{key}/loss'] = loss_scale
+            result[f'{key}/pcc'] = pcc[0]
+        return result
 
-    def get_mae_loss(self, key):
-        pred = torch.stack(self.predictions[key], dim=0)
-        actual = torch.stack(self.actual[key], dim=0)
-        return F.l1_loss(pred.view(-1), actual.view(-1))
 
-    def get_mse_loss(self, key):
-        pred = torch.stack(self.predictions[key], dim=0)
-        actual = torch.stack(self.actual[key], dim=0)
-        return F.mse_loss(pred.view(-1), actual.view(-1))
+def split_region(width, height, size):
+    n_rows = math.ceil(height / size)
+    n_cols = math.ceil(width / size)
+    return n_cols, n_rows
+
+

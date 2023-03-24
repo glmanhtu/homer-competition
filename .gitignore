@@ -139,3 +139,4 @@ resources/*.pth
 checkpoints
 wandb
 *.triplet
+predictions.json

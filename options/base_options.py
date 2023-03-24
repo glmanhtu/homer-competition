@@ -15,34 +15,25 @@ class BaseOptions:
     def initialize(self):
         self._parser.add_argument('--dataset', type=str, help='Path to the dataset')
         self._parser.add_argument('--batch_size', type=int, default=2, help='Input batch size')
-        self._parser.add_argument('--image_size', type=int, default=625, help='Input image size')
-        self._parser.add_argument('--optimizer', type=str, default='Adam')
+        self._parser.add_argument('--image_size', type=int, default=1200, help='Input image size')
+        self._parser.add_argument('--p2_image_size', type=int, default=800, help='Input image size')
+        self._parser.add_argument('--ref_box_height', type=int, default=32, help='Reference letter box height')
         self._parser.add_argument('--cuda', action='store_true', help="Whether to use GPU")
-        self._parser.add_argument('--resume', action='store_true', help="Resume training")
-        self._parser.add_argument('--arch', type=str, default='resnet18')
-        self._parser.add_argument('--save_freq_iter', type=int, default=10,
-                                  help='save the training losses to the summary writer every # iterations')
+        self._parser.add_argument('--p1_arch', type=str, default='mobinet')
+        self._parser.add_argument('--p2_arch', type=str, default='resnet50')
         self._parser.add_argument('--n_threads_train', default=8, type=int, help='# threads for loading data')
         self._parser.add_argument('--n_threads_test', default=8, type=int, help='# threads for loading data')
         self._parser.add_argument('--group', type=str, default='experiment',
                                   help='name of the experiment. It decides where to store samples and models')
         self._parser.add_argument('--name', type=str, default='experiment_1',
                                   help='name of the experiment. It decides where to store samples and models')
+        self._parser.add_argument('--mode', type=str, default='region_detection',
+                                  help='The training mode', choices=['region_detection', 'letter_detection', 'testing'])
         self._parser.add_argument('--wb_mode', type=str, default='online', help='Wandb sync mode')
         self._parser.add_argument('--wb_entity', type=str, default='glmanhtu', help='Wandb entity name')
         self._parser.add_argument('--wb_project', type=str, default='homer-competition', help='Wandb project')
         self._parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
-        self._parser.add_argument('--lr', type=float, default=4e-4,
-                                  help="The initial learning rate")
         self._parser.add_argument('--dropout', type=float, default=0.5, help="Default dropout")
-        self._parser.add_argument('--lr_policy', type=str, default='none', choices=['step', 'none'])
-        self._parser.add_argument('--lr_decay_epochs', type=int, default=100,
-                                  help='reduce the lr to 0.1*lr for every # epochs')
-        self._parser.add_argument('--n_epochs_per_eval', type=int, default=3,
-                                  help='Run eval every n training epochs')
-        self._parser.add_argument('--weight_decay', type=float, default=0., help='weight decay')
-        self._parser.add_argument('--nepochs', type=int, default=1000)
-        self._parser.add_argument('--early_stop', type=int, default=20)
 
         self._initialized = True
 
