@@ -68,6 +68,7 @@ class HomerCompDataset(torch.utils.data.Dataset):
 
         jFile = open(os.path.join(dataset_path, "HomerCompTrainingReadCoco.json"))
         self.data = json.load(jFile)
+        self.dataset_path = dataset_path
         jFile.close()
         ids = []
         for i, image in enumerate(self.data['images']):
@@ -115,7 +116,7 @@ class HomerCompDataset(torch.utils.data.Dataset):
         target["area"] = area
         target["iscrowd"] = iscrowd
 
-        src_folder = os.path.join("HomerCompTraining", "images", "homer2")
+        src_folder = os.path.join(self.dataset_path, "images", "homer2")
         fname = os.path.join(src_folder, image_folder, image_file)
         img = Image.open(fname).convert('RGB')
         img.resize((1000, round(img.size[1] * 1000.0 / float(img.size[0]))), Image.BILINEAR)
