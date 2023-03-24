@@ -147,11 +147,11 @@ def train(args, fold, k_fold):
     val_set = HomerCompDataset(args.dataset, transforms=get_transform(False), isTrain=False, fold=fold, k_fold=k_fold)
 
     data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=2, shuffle=True, num_workers=4,
+        dataset, batch_size=args.batch_size, shuffle=True, num_workers=4,
         collate_fn=utils.collate_fn)
 
     data_loader_test = torch.utils.data.DataLoader(
-        val_set, batch_size=1, shuffle=False, num_workers=4,
+        val_set, batch_size=args.batch_size, shuffle=False, num_workers=4,
         collate_fn=utils.collate_fn)
 
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
