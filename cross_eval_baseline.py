@@ -71,7 +71,7 @@ class HomerCompDataset(torch.utils.data.Dataset):
         jFile.close()
         ids = []
         for i, image in enumerate(self.data['images']):
-            if image['bln_id'] in images:
+            if os.path.basename(image['file_name']) in images:
                 ids.append(i)
         self.imgs = ids
 
@@ -146,7 +146,9 @@ def train(args, fold, k_fold):
     os.makedirs(working_dir, exist_ok=True)
     num_classes = 25
     dataset = HomerCompDataset(args.dataset, transforms=get_transform(True), isTrain=True, fold=fold, k_fold=k_fold)
+    print(f'N images train: {len(dataset)}')
     val_set = HomerCompDataset(args.dataset, transforms=get_transform(False), isTrain=False, fold=fold, k_fold=k_fold)
+    print(f'N images val: {len(val_set)}')
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, shuffle=True, num_workers=4,
