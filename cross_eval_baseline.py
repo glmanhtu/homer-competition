@@ -81,6 +81,11 @@ class HomerCompDataset(torch.utils.data.Dataset):
                 ids.append(i)
         self.imgs = ids
 
+        annotations = self.data['annotations']
+        self.boxes = {}
+        for annotation in annotations:
+            self.boxes.setdefault(annotation['image_id'], []).append(annotation)
+
     def __getitem__(self, idx):
         # load images and masks
         image = self.data['images'][self.imgs[idx]]
@@ -88,21 +93,19 @@ class HomerCompDataset(torch.utils.data.Dataset):
         image_file = img_url[-1]
         image_folder = img_url[-2]
         image_id = image['bln_id']
-        annotations = self.data['annotations']
         boxes = []
         labels = []
-        for annotation in annotations:
-            if image_id == annotation['image_id']:
-                try:
-                    labels.append(mapping[int(annotation['category_id'])])
-                except:
-                    continue
-                x, y, w, h = annotation['bbox']
-                xmin = x
-                xmax = x + w
-                ymin = y
-                ymax = y + h
-                boxes.append([xmin, ymin, xmax, ymax])
+        for annotation in self.boxes[image_id]:
+            try:
+                labels.append(mapping[int(annotation['category_id'])])
+            except:
+                continue
+            x, y, w, h = annotation['bbox']
+            xmin = x
+            xmax = x + w
+            ymin = y
+            ymax = y + h
+            boxes.append([xmin, ymin, xmax, ymax])
         # convert everything into a torch.Tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         # there is only one class
@@ -141,23 +144,14 @@ def get_transform(train):
         transforms.append(T.RandomHorizontalFlip(0.5))
         transforms.append(T.FixedSizeCrop((672, 672)))
         transforms.append(T.RandomPhotometricDistort())
-    else:
-        transforms.append(T.FixedSizeCrop((672, 672)))
     return T.Compose(transforms)
 
 
-def val(args, fold, k_fold, model, working_dir):
+def val(args, dataset, model, working_dir):
     model.eval()
 
-    trans = [T.PILToTensor(), T.ConvertImageDtype(torch.float)]
-    trans = T.Compose(trans)
-
-    dataset_test = HomerCompDataset(args.dataset, transforms=trans, isTrain=False, fold=fold, k_fold=k_fold)
-    print(f'N images val: {len(dataset_test)}')
-
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1, shuffle=False, num_workers=4,
-        collate_fn=utils.collate_fn)
+    data_loader_test = torch.utils.data.DataLoader( dataset, batch_size=1, shuffle=False, num_workers=4,
+                                                    collate_fn=utils.collate_fn)
 
     with open(os.path.join("template.json")) as f:
         json_output = json.load(f)
@@ -171,7 +165,7 @@ def val(args, fold, k_fold, model, working_dir):
         image = images[0]
         idx = targets[0]['image_id'].item()
 
-        image_id = json_output['images'][dataset_test.imgs[idx]]['bln_id']
+        image_id = json_output['images'][dataset.imgs[idx]]['bln_id']
         img_ids.add(image_id)
 
         # Patch wise predictions
@@ -184,6 +178,7 @@ def val(args, fold, k_fold, model, working_dir):
                 boxes = result[0]['boxes'].cpu().int()
                 scores = result[0]['scores'].cpu()
                 preds = result[0]['labels'].cpu()
+
                 if len(boxes) == 0:
                     continue
 
@@ -241,11 +236,9 @@ def val(args, fold, k_fold, model, working_dir):
     wandb.log(val_dict)
 
 
-def train(args, fold, k_fold, model, working_dir):
+def train(args, dataset, model, working_dir):
     os.makedirs(working_dir, exist_ok=True)
     model.train()
-    dataset = HomerCompDataset(args.dataset, transforms=get_transform(True), isTrain=True, fold=fold, k_fold=k_fold)
-    print(f'N images train: {len(dataset)}')
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, shuffle=True, num_workers=4,
@@ -290,7 +283,15 @@ if __name__ == '__main__':
         model.to(device)
         working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
 
-        train(args, fold, args.k_fold, model, working_dir)
-        val(args, fold, args.k_fold, model, working_dir)
+        dataset_train = HomerCompDataset(args.dataset, transforms=get_transform(True), isTrain=True, fold=fold,
+                                         k_fold=args.k_fold)
+        print(f'N images train: {len(dataset_train)}')
+
+        dataset_val = HomerCompDataset(args.dataset, transforms=get_transform(False), isTrain=False, fold=fold,
+                                       k_fold=args.k_fold)
+        print(f'N images val: {len(dataset_val)}')
+
+        train(args, dataset_train, model, working_dir)
+        val(args, dataset_val, model, working_dir)
 
         run.finish()
