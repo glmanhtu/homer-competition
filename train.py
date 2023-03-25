@@ -149,8 +149,7 @@ class Trainer:
         coco = convert_to_coco_api(val_loader.dataset)
         coco_evaluator = CocoEvaluator(coco, ["bbox"])
         coco_evaluator.coco_eval['bbox'].params.maxDets = [max_dets]
-        coco_evaluator.coco_eval['bbox'].summarize = summarizeCustom
-
+        coco_evaluator.coco_eval['bbox'].summarize = lambda: summarizeCustom(coco_evaluator.coco_eval['bbox'])
 
         to_pil_img = torchvision.transforms.ToPILImage()
         logging_imgs = []
