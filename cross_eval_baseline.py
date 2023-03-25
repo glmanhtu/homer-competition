@@ -17,7 +17,7 @@ from PIL import Image
 from PIL import ImageFile
 from torchvision import transforms
 from options.cross_val_options import CrossValOptions
-from utils import misc
+from utils import misc, coco_summary
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import torchvision
@@ -222,30 +222,7 @@ def val(args, dataset, model, working_dir):
     os.remove('gt_tmp.json')
     os.remove('pr_tmp.json')
 
-    cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
-    cocoEval.params.maxDets = [10000]
-
-    cocoEval.evaluate()
-    cocoEval.accumulate()
-    cocoEval.summarize()
-
-    val_dict = {
-        f'val/mAP_0.5:0.95': cocoEval.stats[0],
-        f'val/mAP_0.5': cocoEval.stats[1],
-        f'val/mAP_0.75': cocoEval.stats[2],
-    }
-
-    cocoEval.params.useCats = False
-
-    cocoEval.evaluate()
-    cocoEval.accumulate()
-    cocoEval.summarize()
-
-    val_dict.update({
-        f'val/noCat/mAP_0.5:0.95': cocoEval.stats[0],
-        f'val/noCat/mAP_0.5': cocoEval.stats[1],
-        f'val/noCat/mAP_0.75': cocoEval.stats[2],
-    })
+    val_dict = coco_summary.summarize(cocoGt, cocoDt)
 
     wandb.log(val_dict)
     print(val_dict)

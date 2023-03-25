@@ -3,14 +3,13 @@ import json
 import os
 
 import torch
+from pycocotools.coco import COCO
 
 import wandb
 from dataset import dataset_factory
 from options.cross_val_options import CrossValOptions
 from testing import Predictor
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-
+from utils import coco_summary
 
 args = CrossValOptions().parse()
 
@@ -57,30 +56,7 @@ if __name__ == "__main__":
         os.remove('gt_tmp.json')
         os.remove('pr_tmp.json')
 
-        cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
-        cocoEval.params.maxDets = [10000]
-
-        cocoEval.evaluate()
-        cocoEval.accumulate()
-        cocoEval.summarize()
-
-        val_dict = {
-            f'val/mAP_0.5:0.95': cocoEval.stats[0],
-            f'val/mAP_0.5': cocoEval.stats[1],
-            f'val/mAP_0.75': cocoEval.stats[2],
-        }
-
-        cocoEval.params.useCats = False
-
-        cocoEval.evaluate()
-        cocoEval.accumulate()
-        cocoEval.summarize()
-
-        val_dict.update({
-            f'val/noCat/mAP_0.5:0.95': cocoEval.stats[0],
-            f'val/noCat/mAP_0.5': cocoEval.stats[1],
-            f'val/noCat/mAP_0.75': cocoEval.stats[2],
-        })
+        val_dict = coco_summary.summarize(cocoGt, cocoDt)
 
         wandb.log(val_dict)
         print(val_dict)
