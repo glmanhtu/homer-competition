@@ -8,6 +8,7 @@ from dataset import dataset_factory
 from dataset.papyrus import letter_mapping
 from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
+from utils import wb_utils
 from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperator, ResizingImageOperator, \
     RegionPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, RegionsCropAndRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator
@@ -26,7 +27,7 @@ class Predictor:
         self._letter_model.load(without_optimiser=True)
         self.args = args
 
-    def predict_all(self, ds):
+    def predict_all(self, ds, log_imgs=False):
         # set model to eval
         self._region_model.set_eval()
         self._letter_model.set_eval()
@@ -51,10 +52,17 @@ class Predictor:
         predictor = LongRectangleCropOperator(predictor)
 
         annotations = []
+        logging_imgs = []
         for idx, (image, _) in enumerate(ds):
             pil_img = to_pil_img(image)
             img_predictions = predictor(pil_img)
             outputs = {k: v.to(cpu_device) for k, v in img_predictions.items()}
+
+            if log_imgs and len(outputs['boxes']) > 0:
+                img = wb_utils.bounding_boxes(image, outputs['boxes'].numpy(),
+                                              outputs['labels'].type(torch.int64).numpy(),
+                                              outputs['scores'].numpy())
+                logging_imgs.append(img)
 
             for box, label, score in zip(outputs['boxes'], outputs['labels'], outputs['scores']):
                 box_np = box.numpy().astype(float)
@@ -66,7 +74,7 @@ class Predictor:
                 }
                 annotations.append(annotation)
 
-        return annotations
+        return annotations, logging_imgs
 
 
 if __name__ == "__main__":
@@ -77,7 +85,7 @@ if __name__ == "__main__":
     dataset = dataset_factory.get_dataset(train_args.dataset, train_args.mode, is_training=False,
                                           image_size_p1=train_args.image_size, image_size_p2=train_args.p2_image_size,
                                           ref_box_size=train_args.ref_box_height)
-    predictions = net_predictor.predict_all(dataset)
+    predictions, _ = net_predictor.predict_all(dataset)
     with open(os.path.join("template.json")) as f:
         json_output = json.load(f)
 

@@ -34,7 +34,7 @@ if __name__ == "__main__":
         net_predictor = Predictor(args, pretrained_rgd_dir, pretrained_ltd_dir,
                                   device=torch.device('cuda' if args.cuda else 'cpu'))
 
-        predictions = net_predictor.predict_all(dataset)
+        predictions, logging_ims = net_predictor.predict_all(dataset)
         pred_ids = set([x['image_id'] for x in predictions])
         gt = copy.deepcopy(dataset.data)
 
@@ -59,6 +59,7 @@ if __name__ == "__main__":
         val_dict = coco_summary.summarize(cocoGt, cocoDt)
 
         wandb.log(val_dict)
+        wandb.log({'predicted_images': logging_ims})
         print(val_dict)
 
         run.finish()
