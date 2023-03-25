@@ -17,13 +17,14 @@ idx_to_letter = {v: k for k, v in letter_mapping.items()}
 
 
 class Predictor:
-    def __init__(self, region_detection_model_dir, letter_detection_model_dir, device):
+    def __init__(self, args, region_detection_model_dir, letter_detection_model_dir, device):
         self._region_model = ModelsFactory.get_model(args, 'region_detection', region_detection_model_dir,
                                                      is_train=False, device=device, dropout=args.dropout)
         self._region_model.load(without_optimiser=True)
         self._letter_model = ModelsFactory.get_model(args, 'letter_detection', letter_detection_model_dir,
                                                      is_train=False, device=device, dropout=args.dropout)
         self._letter_model.load(without_optimiser=True)
+        self.args = args
 
     def predict_all(self, ds):
         # set model to eval
@@ -37,13 +38,13 @@ class Predictor:
         # Operators for localising letters inside each papyrus regions
         letter_predictor = LetterDetectionOperator(FinalOperator(), self._letter_model)
         letter_predictor = SplittingOperator(letter_predictor)
-        letter_predictor = SplitRegionOperator(letter_predictor, args.p2_image_size)
+        letter_predictor = SplitRegionOperator(letter_predictor, self.args.p2_image_size)
         letter_predictor = SplittingOperator(letter_predictor)
-        letter_predictor = RegionsCropAndRescaleOperator(letter_predictor, args.ref_box_height)
+        letter_predictor = RegionsCropAndRescaleOperator(letter_predictor, self.args.ref_box_height)
 
         # Operators for detecting papyrus regions and estimating box height
         predictor = RegionPredictionOperator(FinalOperator(), self._region_model)
-        predictor = ResizingImageOperator(predictor, args.image_size)
+        predictor = ResizingImageOperator(predictor, self.args.image_size)
         predictor = PaddingImageOperator(predictor, padding_size=10)
         predictor = BranchingOperator(predictor, letter_predictor)
         predictor = SplittingOperator(predictor)
@@ -69,13 +70,13 @@ class Predictor:
 
 
 if __name__ == "__main__":
-    args = TrainOptions().parse()
-    working_dir = os.path.join(args.checkpoints_dir, args.name)
+    train_args = TrainOptions().parse()
+    working_dir = os.path.join(train_args.checkpoints_dir, train_args.name)
     net_predictor = Predictor(region_detection_model_dir=working_dir, letter_detection_model_dir=working_dir,
-                              device=torch.device('cuda' if args.cuda else 'cpu'))
-    dataset = dataset_factory.get_dataset(args.dataset, args.mode, is_training=False,
-                                          image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
-                                          ref_box_size=args.ref_box_height)
+                              device=torch.device('cuda' if train_args.cuda else 'cpu'))
+    dataset = dataset_factory.get_dataset(train_args.dataset, train_args.mode, is_training=False,
+                                          image_size_p1=train_args.image_size, image_size_p2=train_args.p2_image_size,
+                                          ref_box_size=train_args.ref_box_height)
     predictions = net_predictor.predict_all(dataset)
     with open(os.path.join("template.json")) as f:
         json_output = json.load(f)

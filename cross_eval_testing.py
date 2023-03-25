@@ -32,7 +32,7 @@ if __name__ == "__main__":
                                               ref_box_size=args.ref_box_height, fold=fold, k_fold=args.k_fold)
         pretrained_rgd_dir = os.path.join(args.region_detection_model_dir, f"fold_{fold}")
         pretrained_ltd_dir = os.path.join(args.letter_detection_model_dir, f"fold_{fold}")
-        net_predictor = Predictor(pretrained_rgd_dir, pretrained_ltd_dir,
+        net_predictor = Predictor(args, pretrained_rgd_dir, pretrained_ltd_dir,
                                   device=torch.device('cuda' if args.cuda else 'cpu'))
 
         predictions = net_predictor.predict_all(dataset)
