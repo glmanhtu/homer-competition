@@ -10,6 +10,8 @@ import json
 import os
 
 import torch
+from torch.utils.data import DataLoader
+
 import wandb
 from PIL import Image
 from PIL import ImageFile
@@ -253,9 +255,8 @@ def train(args, dataset, model, working_dir):
     os.makedirs(working_dir, exist_ok=True)
     model.train()
 
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=args.batch_size, shuffle=True, num_workers=4,
-        collate_fn=utils.collate_fn)
+    data_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4, persistent_workers=True,
+                             collate_fn=utils.collate_fn)
 
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.8, weight_decay=0.0004)
