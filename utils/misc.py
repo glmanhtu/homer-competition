@@ -59,12 +59,16 @@ def collate_fn(batch):
 
 
 def convert_region_target(item):
+    boxes = torch.cat([item['regions'], item['boxes']], dim=0)
+    box_labels = (item['labels'] > 0).type(torch.int64)
+    region_labels = item['region_labels'] + 1
+    labels = torch.cat([region_labels, box_labels], dim=0)
+    area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
     return {
-        'boxes': item['regions'],
-        'letter_boxes': item['boxes'],
-        'labels': item['region_labels'],
-        'iscrowd': torch.zeros(item['region_labels'].shape),
-        'area': item['region_area'],
+        'boxes': boxes,
+        'labels': labels,
+        'iscrowd': torch.zeros(labels.shape),
+        'area': area,
         'image_id': item['image_id']
     }
 
