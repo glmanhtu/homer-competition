@@ -250,7 +250,7 @@ def train(args, dataset, model, working_dir):
     lr_scheduler2 = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.85)
     num_epochs = args.nepochs
     for epoch in range(num_epochs):
-        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
+        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=30)
         if epoch < 4:
             lr_scheduler1.step()
         elif 9 < epoch < 50:
