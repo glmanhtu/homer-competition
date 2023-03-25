@@ -282,6 +282,7 @@ if __name__ == '__main__':
     for fold in range(args.k_fold):
         run = wandb.init(group=args.group,
                          name=f'{args.name}_fold-{fold}',
+                         job_type="CrossEvalFinal",
                          project=args.wb_project,
                          entity=args.wb_entity,
                          resume=args.resume,
