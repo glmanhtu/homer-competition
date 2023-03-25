@@ -85,7 +85,7 @@ class LongRectangleCropOperator(ChainOperator):
         return images, start_points
 
     def backward(self, data, all_start_points):
-        all_predictions = {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
+        all_predictions = None
         for predictions, start_points in zip(data, all_start_points):
             if predictions is None:
                 continue
@@ -94,6 +94,10 @@ class LongRectangleCropOperator(ChainOperator):
                 all_predictions = predictions
             else:
                 all_predictions = merge_prediction(all_predictions, predictions, additional_keys=('labels', 'scores'))
+
+        if all_predictions is None:
+            all_predictions = {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
+
         return all_predictions
 
 
