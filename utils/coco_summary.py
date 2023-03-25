@@ -54,7 +54,7 @@ def summarize(cocoGt, cocoDt, max_dets=10000):
 
     cocoEval.evaluate()
     cocoEval.accumulate()
-    cocoEval.summarize()
+    cocoEval.summarizeCustom()
 
     val_dict = {
         f'val/mAP_0.5:0.95': cocoEval.stats[0],
@@ -66,7 +66,7 @@ def summarize(cocoGt, cocoDt, max_dets=10000):
 
     cocoEval.evaluate()
     cocoEval.accumulate()
-    cocoEval.summarize()
+    cocoEval.summarizeCustom()
 
     val_dict.update({
         f'val/noCat/mAP_0.5:0.95': cocoEval.stats[0],

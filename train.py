@@ -142,9 +142,10 @@ class Trainer:
 
         return val_dict, logging_imgs
 
-    def letter_detection_validation(self, val_loader, log_predictions=False):
+    def letter_detection_validation(self, val_loader, log_predictions=False, max_dets=10000):
         coco = convert_to_coco_api(val_loader.dataset)
         coco_evaluator = CocoEvaluator(coco, ["bbox"])
+        coco_evaluator.coco_eval['bbox'].params.maxDets = [max_dets, max_dets, max_dets]
 
         to_pil_img = torchvision.transforms.ToPILImage()
         logging_imgs = []
