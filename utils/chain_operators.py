@@ -1,5 +1,6 @@
 import math
 
+import torch
 import torchvision.transforms
 from PIL import Image
 
@@ -84,14 +85,15 @@ class LongRectangleCropOperator(ChainOperator):
         return images, start_points
 
     def backward(self, data, all_start_points):
-        all_predictions = None
+        all_predictions = {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
         for predictions, start_points in zip(data, all_start_points):
+            if predictions is None:
+                continue
             predictions['boxes'] = shift_coordinates(predictions['boxes'], -start_points[0], -start_points[1])
             if all_predictions is None:
                 all_predictions = predictions
             else:
                 all_predictions = merge_prediction(all_predictions, predictions, additional_keys=('labels', 'scores'))
-
         return all_predictions
 
 
