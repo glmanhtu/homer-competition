@@ -34,7 +34,7 @@ if __name__ == "__main__":
         net_predictor = Predictor(args, pretrained_rgd_dir, pretrained_ltd_dir,
                                   device=torch.device('cuda' if args.cuda else 'cpu'))
 
-        predictions, logging_ims = net_predictor.predict_all(dataset)
+        predictions, logging_ims = net_predictor.predict_all(dataset, log_imgs=True)
         pred_ids = set([x['image_id'] for x in predictions])
         gt = copy.deepcopy(dataset.data)
 
