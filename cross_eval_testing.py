@@ -35,7 +35,7 @@ if __name__ == "__main__":
                                   device=torch.device('cuda' if args.cuda else 'cpu'))
 
         predictions = net_predictor.predict_all(dataset)
-        pred_ids = set([x['image_id'] for x in predictions['annotations']])
+        pred_ids = set([x['image_id'] for x in predictions])
         gt = copy.deepcopy(dataset.data)
 
         for annotation in list(gt['annotations']):
@@ -48,7 +48,7 @@ if __name__ == "__main__":
             json.dump(gt, outfile, indent=4)
 
         with open("pr_tmp.json", "w") as outfile:
-            json.dump(predictions['annotations'], outfile, indent=4)
+            json.dump(predictions, outfile, indent=4)
 
         cocoGt = COCO('gt_tmp.json')
         cocoDt = cocoGt.loadRes("pr_tmp.json")
