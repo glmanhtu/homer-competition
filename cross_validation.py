@@ -9,6 +9,7 @@ if __name__ == "__main__":
     for fold in range(args.k_fold):
         run = wandb.init(group=args.group,
                          name=f'{args.name}_fold-{fold}',
+                         job_type=args.mode,
                          project=args.wb_project,
                          entity=args.wb_entity,
                          resume=args.resume,
@@ -22,5 +23,8 @@ if __name__ == "__main__":
 
         if args.resume or not trainer.is_trained():
             trainer.train()
+
+        trainer.load_pretrained_model()
+        trainer.final_eval()
 
         run.finish()

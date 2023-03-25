@@ -91,8 +91,10 @@ class Trainer:
                 print(f'Early stop at epoch {i_epoch}')
                 break
 
-        self.load_pretrained_model()
-        _, log_imgs = self.validate(self.args.nepochs + 1, self.data_loader_val, log_predictions=True)
+    def final_eval(self):
+        val_dict, log_imgs = self.validate(self.args.nepochs + 1, self.data_loader_val, log_predictions=True)
+        for key in val_dict:
+            wandb.run.summary[f'best_model/{key}'] = val_dict[key]
         wandb.log({'val/all_predictions': log_imgs}, step=self._current_step)
 
     def _train_epoch(self, i_epoch):
@@ -240,3 +242,4 @@ if __name__ == "__main__":
         trainer.train()
 
     trainer.load_pretrained_model()
+    trainer.final_eval()
