@@ -1,6 +1,5 @@
 import json
 import os.path
-import os.path
 
 import torch
 import torchvision.transforms
@@ -13,20 +12,17 @@ from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperato
     RegionPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, RegionsCropAndRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator
 
-args = TrainOptions().parse()
-device = torch.device('cuda' if args.cuda else 'cpu')
 cpu_device = torch.device("cpu")
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
 
 
 class Predictor:
-    def __init__(self):
-        self._working_dir = os.path.join(args.checkpoints_dir, args.name)
-        self._region_model = ModelsFactory.get_model(args, 'region_detection', self._working_dir, is_train=False,
-                                                     device=device, dropout=args.dropout)
+    def __init__(self, region_detection_model_dir, letter_detection_model_dir, device):
+        self._region_model = ModelsFactory.get_model(args, 'region_detection', region_detection_model_dir,
+                                                     is_train=False, device=device, dropout=args.dropout)
         self._region_model.load(without_optimiser=True)
-        self._letter_model = ModelsFactory.get_model(args, 'letter_detection', self._working_dir, is_train=False,
-                                                     device=device, dropout=args.dropout)
+        self._letter_model = ModelsFactory.get_model(args, 'letter_detection', letter_detection_model_dir,
+                                                     is_train=False, device=device, dropout=args.dropout)
         self._letter_model.load(without_optimiser=True)
 
     def predict_all(self, ds):
@@ -73,7 +69,10 @@ class Predictor:
 
 
 if __name__ == "__main__":
-    net_predictor = Predictor()
+    args = TrainOptions().parse()
+    working_dir = os.path.join(args.checkpoints_dir, args.name)
+    net_predictor = Predictor(region_detection_model_dir=working_dir, letter_detection_model_dir=working_dir,
+                              device=torch.device('cuda' if args.cuda else 'cpu'))
     dataset = dataset_factory.get_dataset(args.dataset, args.mode, is_training=False,
                                           image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
                                           ref_box_size=args.ref_box_height)

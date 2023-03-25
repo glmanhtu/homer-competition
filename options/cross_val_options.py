@@ -11,3 +11,5 @@ class CrossValOptions(TrainOptions):
     def initialize(self):
         TrainOptions.initialize(self)
         self._parser.add_argument('--k_fold', type=int, default=5)
+        self._parser.add_argument('--region_detection_model_dir', type=str, default='')
+        self._parser.add_argument('--letter_detection_model_dir', type=str, default='')

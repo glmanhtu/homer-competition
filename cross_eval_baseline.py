@@ -221,6 +221,8 @@ def val(args, dataset, model, working_dir):
     os.remove('pr_tmp.json')
 
     cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
+    cocoEval.params.maxDets = [10000]
+
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
@@ -231,9 +233,20 @@ def val(args, dataset, model, working_dir):
         f'val/mAP_0.75': cocoEval.stats[2],
     }
 
-    print(val_dict)
+    cocoEval.params.useCats = False
+
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    cocoEval.summarize()
+
+    val_dict.update({
+        f'val/noCat/mAP_0.5:0.95': cocoEval.stats[0],
+        f'val/noCat/mAP_0.5': cocoEval.stats[1],
+        f'val/noCat/mAP_0.75': cocoEval.stats[2],
+    })
 
     wandb.log(val_dict)
+    print(val_dict)
 
 
 def train(args, dataset, model, working_dir):
