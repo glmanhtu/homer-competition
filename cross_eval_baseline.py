@@ -146,59 +146,44 @@ def get_transform(train):
     return T.Compose(transforms)
 
 
-def val(args, fold, k_fold):
-    working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
-    device = torch.device('cpu')
-    num_classes = 25
-
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    model.to(device)
-
-    checkpoint = torch.load(os.path.join(working_dir, "model_detection.pt"), map_location=device)
-
-    model.load_state_dict(checkpoint['model_state_dict'])
+def val(args, fold, k_fold, model, working_dir):
     model.eval()
 
-    trans = []
-    trans.append(T.PILToTensor())
-    trans.append(T.ConvertImageDtype(torch.float))
+    trans = [T.PILToTensor(), T.ConvertImageDtype(torch.float)]
     trans = T.Compose(trans)
 
     dataset_test = HomerCompDataset(args.dataset, transforms=trans, isTrain=False, fold=fold, k_fold=k_fold)
+    print(f'N images val: {len(dataset_test)}')
 
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test, batch_size=1, shuffle=False, num_workers=4,
         collate_fn=utils.collate_fn)
 
-    jFile = open(os.path.join("template.json"))
-    json_output = json.load(jFile)
-    jFile.close()
+    with open(os.path.join("template.json")) as f:
+        json_output = json.load(f)
 
-    jFile = open(os.path.join(args.dataset, "HomerCompTrainingReadCoco.json"))
-    test_gt = json.load(jFile)
-    jFile.close()
+    with open(os.path.join(args.dataset, "HomerCompTrainingReadCoco.json")) as f:
+        test_gt = json.load(f)
 
-    img_ids = []
-
+    img_ids = set([])
     for images, targets in data_loader_test:
 
         image = images[0]
         idx = targets[0]['image_id'].item()
 
         image_id = json_output['images'][dataset_test.imgs[idx]]['bln_id']
-        img_ids.append(image_id)
+        img_ids.add(image_id)
 
         # Patch wise predictions
         for i in range(0, image.shape[1], 672):
             for j in range(0, image.shape[2], 672):
                 crop = transforms.functional.crop(image, i, j, 672, 672)
-                crop = torch.unsqueeze(crop, 0)
-                result = model(crop)
-                boxes = result[0]['boxes'].int()
-                scores = result[0]['scores']
-                preds = result[0]['labels']
+                crop = torch.unsqueeze(crop, 0).to(device)
+                with torch.no_grad():
+                    result = model(crop)
+                boxes = result[0]['boxes'].cpu().int()
+                scores = result[0]['scores'].cpu()
+                preds = result[0]['labels'].cpu()
                 if len(boxes) == 0:
                     continue
 
@@ -216,23 +201,14 @@ def val(args, fold, k_fold):
         if annotation['image_id'] not in img_ids:
             test_gt['annotations'].remove(annotation)
 
-    with open("gt.json", "w") as outfile:
+    with open(os.path.join(working_dir, "gt.json"), "w") as outfile:
         json.dump(test_gt, outfile, indent=4)
 
-    with open("predictions.json", "w") as outfile:
+    with open(os.path.join(working_dir, "predictions.json"), "w") as outfile:
         json.dump(json_output, outfile, indent=4)
 
-    jFile = open(os.path.join("predictions.json"))
-    predictions = json.load(jFile)
-    jFile.close()
-
-    jFile = open(os.path.join("gt.json"))
-    gt = json.load(jFile)
-    jFile.close()
-
-    for annotation in list(gt['annotations']):
-        if annotation['tags']['BaseType'][0] == 'bt3':
-            gt['annotations'].remove(annotation)
+    predictions = json_output
+    gt = test_gt
 
     for annotation in gt['annotations']:
         annotation['iscrowd'] = 0
@@ -265,28 +241,15 @@ def val(args, fold, k_fold):
     wandb.log(val_dict)
 
 
-def train(args, fold, k_fold):
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
+def train(args, fold, k_fold, model, working_dir):
     os.makedirs(working_dir, exist_ok=True)
-    num_classes = 25
+    model.train()
     dataset = HomerCompDataset(args.dataset, transforms=get_transform(True), isTrain=True, fold=fold, k_fold=k_fold)
     print(f'N images train: {len(dataset)}')
-    val_set = HomerCompDataset(args.dataset, transforms=get_transform(False), isTrain=False, fold=fold, k_fold=k_fold)
-    print(f'N images val: {len(val_set)}')
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, shuffle=True, num_workers=4,
         collate_fn=utils.collate_fn)
-
-    data_loader_test = torch.utils.data.DataLoader(
-        val_set, batch_size=args.batch_size, shuffle=False, num_workers=4,
-        collate_fn=utils.collate_fn)
-
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    model.to(device)
 
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.8, weight_decay=0.0004)
@@ -299,7 +262,7 @@ def train(args, fold, k_fold):
             lr_scheduler1.step()
         elif 9 < epoch < 50:
             lr_scheduler2.step()
-        # coco_evaluator = evaluate(model, data_loader_test, device=device)
+
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -319,7 +282,15 @@ if __name__ == '__main__':
                          settings=wandb.Settings(_disable_stats=True),
                          mode=args.wb_mode)
 
-        train(args, fold, args.k_fold)
-        val(args, fold, args.k_fold)
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        in_features = model.roi_heads.box_predictor.cls_score.in_features
+        num_classes = 25
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        model.to(device)
+        working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
+
+        train(args, fold, args.k_fold, model, working_dir)
+        val(args, fold, args.k_fold, model, working_dir)
 
         run.finish()
