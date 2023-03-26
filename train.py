@@ -16,8 +16,7 @@ from utils import misc, wb_utils
 from utils.chain_operators import SplittingOperator, RegionsCropAndRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator, FinalOperator
 from utils.coco_summary import summarizeCustom
-from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging, \
-    MetricLogging
+from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging
 
 cpu_device = torch.device("cpu")
 
@@ -191,25 +190,19 @@ class Trainer:
 
         return coco_evaluator, {}, logging_imgs
 
-    def region_detection_validate(self, val_loader, log_predictions=False):
+    def region_detection_validate(self, val_loader, log_predictions=False, max_dets=10000):
 
         coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
         coco_evaluator = CocoEvaluator(coco, ["bbox"])
+        coco_evaluator.coco_eval['bbox'].params.maxDets = [max_dets]
+        coco_evaluator.coco_eval['bbox'].summarize = lambda: summarizeCustom(coco_evaluator.coco_eval['bbox'])
 
         logging_imgs = []
-        metric_logging = MetricLogging()
         for i_train_batch, batch in enumerate(val_loader):
             images, targets = batch
             region_predictions = self._model.forward(images)
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
             targets = [convert_region_target(x) for x in targets]
-
-            for output, target in zip(outputs, targets):
-                for scale_pred, region_box in zip(output['extra_head_pred'], output['boxes']):
-                    boxes = misc.filter_boxes(region_box, target['letter_boxes'])
-                    if len(boxes) > 0:
-                        scale = (boxes[:, 3] - boxes[:, 1]).mean() / (region_box[3] - region_box[1])
-                        metric_logging.update('scale', scale, scale_pred)
 
             res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
             coco_evaluator.update(res)
@@ -218,11 +211,10 @@ class Trainer:
                 for i in range(len(outputs)):
                     img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                                   outputs[i]['labels'].type(torch.int64).numpy(),
-                                                  outputs[i]['scores'].numpy(), outputs[i]['extra_head_pred'],
-                                                  targets[i]['letter_boxes'])
+                                                  outputs[i]['scores'].numpy())
                     logging_imgs.append(img)
 
-        return coco_evaluator, metric_logging.get_report(), logging_imgs
+        return coco_evaluator, {}, logging_imgs
 
 
 if __name__ == "__main__":

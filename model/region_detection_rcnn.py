@@ -1,94 +1,108 @@
-import torch
-import torchvision
-from torch import nn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN_MobileNet_V3_Large_FPN_Weights, \
-    TwoMLPHead, fasterrcnn_mobilenet_v3_large_fpn, fasterrcnn_resnet50_fpn_v2
-from torchvision.ops import MultiScaleRoIAlign
+from typing import List, Tuple
 
-from model import extra_roi_heads
-from utils.misc import filter_boxes
-from utils.transforms import CustomiseGeneralizedRCNNTransform
+import torch
+from torchvision.ops import boxes as box_ops, roi_align
+
+from torch import nn, Tensor
+import torch.nn.functional as F
+
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_mobilenet_v3_large_fpn, \
+    fasterrcnn_resnet50_fpn_v2
+
+
+def custom_post_process(
+    self,
+        class_logits,  # type: Tensor
+        box_regression,  # type: Tensor
+        proposals,  # type: List[Tensor]
+        image_shapes,  # type: List[Tuple[int, int]]
+    ):
+    # type: (...) -> Tuple[List[Tensor], List[Tensor], List[Tensor]]
+    device = class_logits.device
+    num_classes = class_logits.shape[-1]
+
+    boxes_per_image = [boxes_in_image.shape[0] for boxes_in_image in proposals]
+    pred_boxes = self.box_coder.decode(box_regression, proposals)
+
+    pred_scores = F.softmax(class_logits, -1)
+
+    pred_boxes_list = pred_boxes.split(boxes_per_image, 0)
+    pred_scores_list = pred_scores.split(boxes_per_image, 0)
+
+    all_boxes = []
+    all_scores = []
+    all_labels = []
+    for boxes, scores, image_shape in zip(pred_boxes_list, pred_scores_list, image_shapes):
+        boxes = box_ops.clip_boxes_to_image(boxes, image_shape)
+
+        # create labels for each prediction
+        labels = torch.arange(num_classes, device=device)
+        labels = labels.view(1, -1).expand_as(scores)
+
+        # remove predictions with the background label
+        boxes = boxes[:, 1:]
+        scores = scores[:, 1:]
+        labels = labels[:, 1:]
+
+        # batch everything, by making every class prediction be a separate instance
+        boxes = boxes.reshape(-1, 4)
+        scores = scores.reshape(-1)
+        labels = labels.reshape(-1)
+
+        # remove low scoring boxes
+        inds = torch.where(scores > self.score_thresh)[0]
+        boxes, scores, labels = boxes[inds], scores[inds], labels[inds]
+
+        # remove empty boxes
+        keep = box_ops.remove_small_boxes(boxes, min_size=1e-2)
+        boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
+
+        # non-maximum suppression, independently done per class
+        keep = box_ops.batched_nms(boxes, scores, labels, self.nms_thresh)
+
+        boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
+
+        # Prioritize Region boxes, which has label == 2
+        keep = torch.cat([torch.where(labels == 2)[0], torch.where(labels != 2)[0]], dim=0)
+
+        # keep only topk scoring predictions
+        keep = keep[: self.detections_per_img]
+        boxes, scores, labels = boxes[keep], scores[keep], labels[keep]
+
+        all_boxes.append(boxes)
+        all_scores.append(scores)
+        all_labels.append(labels)
+
+    return all_boxes, all_scores, all_labels
 
 
 class RegionDetectionRCNN(nn.Module):
 
-    def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
+    def __init__(self, arch, device, img_size, dropout=0.5):
         super().__init__()
-        roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
-        extra_head = BoxAvgSizeHead(256, roi_pool, num_classes=n_classes, dropout=dropout)
         if arch == 'mobinet':
             model = fasterrcnn_mobilenet_v3_large_fpn(pretrained=True, min_size=img_size, max_size=img_size,
-                                                      box_score_thresh=0.5)
+                                                      box_nms_thresh=0.3, box_score_thresh=0.3,
+                                                      box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
+                                                      box_detections_per_img=320)
         elif arch == 'resnet50':
             model = fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size, max_size=img_size,
-                                               box_score_thresh=0.5)
+                                               box_nms_thresh=0.3, box_score_thresh=0.3,
+                                               box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
+                                               box_detections_per_img=320)
         else:
             raise Exception(f'Arch {arch} is not implemented')
 
-        roi_heads_extra = extra_roi_heads.from_origin(model.roi_heads, extra_head, BoxSizeCriterion())
-        model.roi_heads = roi_heads_extra
-        model.transform = CustomiseGeneralizedRCNNTransform.from_origin(model.transform)
-
+        n_classes = 3   # 1 background + 1 regions + 1 boxes
+        model.roi_heads.postprocess_detections = lambda class_logits, box_regression, proposals, image_shapes: \
+            custom_post_process(model.roi_heads, class_logits, box_regression, proposals, image_shapes)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
 
         self.network = model
         self.to(device)
 
+
     def forward(self, x, y=None):
         return self.network(x, y)
 
-
-class BoxSizeCriterion(nn.Module):
-    def __init__(self, ref_scale=0.03):
-        super().__init__()
-        self.criterion = nn.SmoothL1Loss()
-        self.ref_scale = ref_scale
-
-    def post_prediction(self, logits, labels):
-        x = logits * self.ref_scale
-        num_pred = x.shape[0]
-        boxes_per_image = [label.shape[0] for label in labels]
-        labels = torch.cat(labels)
-        index = torch.arange(num_pred, device=labels.device)
-        preds = x[index, labels][:, None]
-        preds = preds.split(boxes_per_image, dim=0)
-        return preds
-
-    def forward(self, predictions, box_proposals, targets, pos_matched_idxs):
-        gt = []
-        gt_labels = [t["labels"] for t in targets]
-        labels = [gt_label[idxs] for gt_label, idxs in zip(gt_labels, pos_matched_idxs)]
-        labels = torch.cat(labels, dim=0)
-
-        pred_logic = predictions[torch.arange(labels.shape[0], device=labels.device), labels]
-        pred_mask = []
-        for i in range(len(box_proposals)):
-            for region_box in box_proposals[i]:
-                l_boxes = filter_boxes(region_box, targets[i]['letter_boxes'])
-                if len(l_boxes > 0):
-                    scale = (l_boxes[:, 3] - l_boxes[:, 1]).mean() / (region_box[3] - region_box[1])
-                    gt.append(scale / self.ref_scale)
-                    pred_mask.append(True)
-                else:
-                    pred_mask.append(False)
-        pred_mask = torch.tensor(pred_mask, device=predictions.device)
-        pred_logic = pred_logic[pred_mask]
-        return self.criterion(pred_logic, torch.stack(gt, dim=0))
-
-
-class BoxAvgSizeHead(nn.Module):
-    def __init__(self, in_channels, roi_pooler, num_classes, dropout=0.5):
-        super().__init__()
-        self.roi_pooler = roi_pooler
-        resolution = roi_pooler.output_size[0]
-        representation_size = 1024
-        self.head = TwoMLPHead(in_channels * resolution ** 2, representation_size)
-        self.dropout = nn.Dropout(p=dropout)
-        self.predictor = nn.Linear(representation_size, num_classes)
-
-    def forward(self, features, box_proposals, image_shapes):
-        x = self.roi_pooler(features, box_proposals, image_shapes)
-        x = self.dropout(x)
-        x = self.head(x)
-        return self.predictor(x)

@@ -118,8 +118,13 @@ class RegionPredictionOperator(ChainOperator):
         return predictions[0], None
 
     def backward(self, prediction, addition):
-        regions, scales = prediction['boxes'], prediction['extra_head_pred']
-        prediction['box_height'] = scales.view(-1) * (regions[:, 3] - regions[:, 1])
+        region_mask, box_mask = prediction['labels'] == 2, prediction['labels'] == 1
+        regions, boxes = prediction['boxes'][region_mask], prediction['boxes'][box_mask]
+        avg_box_height = (boxes[:, 3] - boxes[:, 1]).mean()
+        prediction['boxes'] = regions
+        prediction['labels'] = prediction['labels'][region_mask]
+        prediction['scores'] = prediction['scores'][region_mask]
+        prediction['box_height'] = avg_box_height.repeat(len(regions))
         return prediction
 
 
