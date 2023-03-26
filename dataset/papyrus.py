@@ -105,10 +105,10 @@ class PapyrusDataset(Dataset):
             return Compose([
                 RandomHorizontalFlip(),
                 RandomVerticalFlip(),
-                LongRectangleCrop(with_randomness=True),
-                RandomCropImage(min_factor=0.85, max_factor=1, min_iou_papyrus=0.2),
+                LongRectangleCrop(),
+                RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
                 FixedImageResize(self.image_size),
-                PaddingImage(padding_size=20),
+                PaddingImage(padding_size=100),
                 ImageTransformCompose([
                     torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([
@@ -121,7 +121,7 @@ class PapyrusDataset(Dataset):
             return Compose([
                 LongRectangleCrop(),
                 FixedImageResize(self.image_size),
-                PaddingImage(padding_size=20),
+                PaddingImage(padding_size=100),
                 ToTensor()
             ])
 
