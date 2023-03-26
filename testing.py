@@ -45,7 +45,7 @@ class Predictor:
 
         # Operators for detecting papyrus regions and estimating box height
         predictor = RegionPredictionOperator(FinalOperator(), self._region_model)
-        predictor = PaddingImageOperator(predictor, padding_size=100)
+        predictor = PaddingImageOperator(predictor, padding_size=20)
         predictor = ResizingImageOperator(predictor, self.args.image_size)
         predictor = BranchingOperator(predictor, letter_predictor)
         predictor = SplittingOperator(predictor)
