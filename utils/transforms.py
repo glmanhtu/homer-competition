@@ -1,7 +1,7 @@
 import copy
 import random
 from typing import Optional, Dict, Tuple
-
+from torchvision.transforms import functional as F
 import numpy as np
 import torch
 import torchvision
@@ -72,7 +72,7 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     boxes = shift_coordinates(target['boxes'], new_x, new_y)
     boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
     regions = shift_coordinates(target['regions'], new_x, new_y)
-    min_factor = 0.05
+    min_factor = 0.01
     regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
                                             min_w=new_width*min_factor, min_h=new_height*min_factor)
     target = copy.deepcopy(target)
@@ -84,6 +84,26 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     target['region_area'] = compute_area(regions)
     target['iscrowd'] = torch.zeros((labels.shape[0],), dtype=torch.int64)
     return new_img, target
+
+
+class RandomHorizontalFlip(torchvision.transforms.RandomHorizontalFlip):
+    def forward(self, image: Image, target: Optional[Dict[str, Tensor]] = None ):
+        if torch.rand(1) < self.p:
+            image = F.hflip(image)
+            if target is not None:
+                target["boxes"][:, [0, 2]] = image.width - target["boxes"][:, [2, 0]]
+                target["regions"][:, [0, 2]] = image.width - target["regions"][:, [2, 0]]
+        return image, target
+
+
+class RandomVerticalFlip(torchvision.transforms.RandomVerticalFlip):
+    def forward(self, image: Image, target: Optional[Dict[str, Tensor]] = None ):
+        if torch.rand(1) < self.p:
+            image = F.vflip(image)
+            if target is not None:
+                target["boxes"][:, [1, 3]] = image.height - target["boxes"][:, [3, 1]]
+                target["regions"][:, [1, 3]] = image.height - target["regions"][:, [3, 1]]
+        return image, target
 
 
 class RegionImageCropAndRescale(nn.Module):
@@ -156,9 +176,10 @@ class CropAndPad(nn.Module):
 
 
 class LongRectangleCrop(nn.Module):
-    def __init__(self, split_at=0.6):
+    def __init__(self, split_at=0.6, with_randomness=False):
         super().__init__()
         self.split_at = split_at
+        self.with_randomness = with_randomness
 
     def forward(self, image, target):
         image_part = target['image_part']
@@ -171,11 +192,17 @@ class LongRectangleCrop(nn.Module):
             new_height = int(self.split_at * image.height)
             if image_part == 2:
                 min_x, min_y = 0, image.height - new_height
+            if self.with_randomness:
+                min_y = random.randint(0, image.height - new_height)
 
         elif image.width > image.height:
             new_width = int(self.split_at * image.width)
             if image_part == 2:
                 min_x, min_y = image.width - new_width, 0
+
+            if self.with_randomness:
+                min_x = random.randint(0, image.width - new_width)
+
         else:
             return image, target
 
