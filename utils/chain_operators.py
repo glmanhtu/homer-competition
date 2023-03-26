@@ -121,7 +121,7 @@ class RegionPredictionOperator(ChainOperator):
         region_mask, box_mask = prediction['labels'] == 2, prediction['labels'] == 1
         regions, boxes = prediction['boxes'][region_mask], prediction['boxes'][box_mask]
         avg_box_height = (boxes[:, 3] - boxes[:, 1]).mean()
-        prediction['box_height'] = torch.stack([avg_box_height] * len(regions))
+        prediction['box_height'] = avg_box_height.repeat(len(regions))
         return prediction
 
 
