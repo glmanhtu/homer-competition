@@ -7,7 +7,7 @@ from dataset.papyrus import PapyrusDataset
 from utils import misc
 from utils.misc import split_region
 from utils.transforms import Compose, RegionImageCropAndRescale, CropAndPad, ImageTransformCompose, ToTensor, \
-    LongRectangleCrop
+    LongRectangleCrop, RandomHorizontalFlip
 
 
 class PapyrusP2Dataset(PapyrusDataset):
@@ -21,6 +21,7 @@ class PapyrusP2Dataset(PapyrusDataset):
             return Compose([
                 RegionImageCropAndRescale(ref_box_height=self.ref_box_size),
                 CropAndPad(image_size=self.image_size, with_randomness=True),
+                RandomHorizontalFlip(),
                 ImageTransformCompose([
                     torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([

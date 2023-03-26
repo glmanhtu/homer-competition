@@ -1,8 +1,6 @@
-import torchvision
 from torch import nn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FastRCNNConvFCHead, fasterrcnn_resnet50_fpn_v2, \
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn_v2, \
     fasterrcnn_mobilenet_v3_large_fpn
-from torchvision.ops import MultiScaleRoIAlign
 
 
 class LetterDetectionRCNN(nn.Module):
