@@ -45,8 +45,8 @@ class Predictor:
 
         # Operators for detecting papyrus regions and estimating box height
         predictor = RegionPredictionOperator(FinalOperator(), self._region_model)
+        predictor = PaddingImageOperator(predictor, padding_size=100)
         predictor = ResizingImageOperator(predictor, self.args.image_size)
-        predictor = PaddingImageOperator(predictor, padding_size=10)
         predictor = BranchingOperator(predictor, letter_predictor)
         predictor = SplittingOperator(predictor)
         predictor = LongRectangleCropOperator(predictor)
@@ -80,7 +80,7 @@ class Predictor:
 if __name__ == "__main__":
     train_args = TrainOptions().parse()
     working_dir = os.path.join(train_args.checkpoints_dir, train_args.name)
-    net_predictor = Predictor(region_detection_model_dir=working_dir, letter_detection_model_dir=working_dir,
+    net_predictor = Predictor(train_args, region_detection_model_dir=working_dir, letter_detection_model_dir=working_dir,
                               device=torch.device('cuda' if train_args.cuda else 'cpu'))
     dataset = dataset_factory.get_dataset(train_args.dataset, train_args.mode, is_training=False,
                                           image_size_p1=train_args.image_size, image_size_p2=train_args.p2_image_size,

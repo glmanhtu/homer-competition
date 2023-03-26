@@ -1,3 +1,4 @@
+import copy
 import random
 from typing import Optional, Dict, Tuple
 
@@ -74,6 +75,7 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     min_factor = 0.05
     regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
                                             min_w=new_width*min_factor, min_h=new_height*min_factor)
+    target = copy.deepcopy(target)
     target['boxes'] = boxes
     target['labels'] = labels
     target['regions'] = regions

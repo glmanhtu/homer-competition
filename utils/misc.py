@@ -31,9 +31,9 @@ def chunks(l, n):
 
 def map_location(cuda):
     if torch.cuda.is_available() and cuda:
-        map_location = lambda storage, loc: storage.cuda()
+        return torch.device('cuda')
     else:
-        map_location = 'cpu'
+        return torch.device('cpu')
 
 
 def display_terminal(iter_start_time, i_epoch, i_train_batch, num_batches, train_dict):
