@@ -26,7 +26,7 @@ def resize_image(image, boxes, max_img_size):
     boxes[:, 2] *= factor_w
     boxes[:, 3] *= factor_h
 
-    return image, boxes
+    return raw_image, boxes
 
 
 def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, region_detection=False, max_img_size=600):
