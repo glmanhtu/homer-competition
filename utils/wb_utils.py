@@ -9,9 +9,27 @@ class_id_to_label = {int(v): k for k, v in display_ids.items()}
 class_id_to_label_letter = {v: str(k) for k, v in letter_mapping.items()}
 
 
-def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, region_detection=False):
+def resize_image(image, boxes, max_img_size):
+    if image.height > image.width:
+        factor = max_img_size / image.height
+    else:
+        factor = max_img_size / image.width
+
+    raw_image = image.resize((int(image.width * factor), int(image.height * factor)))
+    factor_w = raw_image.width / image.width
+    factor_h = raw_image.height / image.height
+    boxes[:, 0] *= factor_w
+    boxes[:, 1] *= factor_h
+    boxes[:, 2] *= factor_w
+    boxes[:, 3] *= factor_h
+
+    return image, boxes
+
+
+def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, region_detection=False, max_img_size=600):
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
+    raw_image, v_boxes = resize_image(raw_image, v_boxes, max_img_size)
     all_boxes = []
     label_mapping = class_id_to_label if region_detection else class_id_to_label_letter
     # plot each bounding box for this image
