@@ -18,6 +18,7 @@ def resize_image(image, boxes, max_img_size):
     raw_image = image.resize((int(image.width * factor), int(image.height * factor)))
     factor_w = raw_image.width / image.width
     factor_h = raw_image.height / image.height
+    boxes = boxes.clone()
     boxes[:, 0] *= factor_w
     boxes[:, 1] *= factor_h
     boxes[:, 2] *= factor_w
