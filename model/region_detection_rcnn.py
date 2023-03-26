@@ -11,12 +11,12 @@ class RegionDetectionRCNN(nn.Module):
             model = fasterrcnn_mobilenet_v3_large_fpn(pretrained=True, min_size=img_size, max_size=img_size,
                                                       box_nms_thresh=0.3, box_score_thresh=0.3,
                                                       box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
-                                                      box_detections_per_img=520)
+                                                      box_detections_per_img=320)
         elif arch == 'resnet50':
             model = fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size, max_size=img_size,
                                                box_nms_thresh=0.3, box_score_thresh=0.3,
                                                box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
-                                               box_detections_per_img=520)
+                                               box_detections_per_img=320)
         else:
             raise Exception(f'Arch {arch} is not implemented')
 
