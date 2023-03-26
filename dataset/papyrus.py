@@ -105,7 +105,7 @@ class PapyrusDataset(Dataset):
             return Compose([
                 RandomHorizontalFlip(),
                 RandomVerticalFlip(),
-                LongRectangleCrop(),
+                LongRectangleCrop(with_randomness=True),
                 RandomCropImage(min_factor=0.85, max_factor=1, min_iou_papyrus=0.2),
                 FixedImageResize(self.image_size),
                 PaddingImage(padding_size=20),
