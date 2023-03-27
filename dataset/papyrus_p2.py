@@ -21,7 +21,6 @@ class PapyrusP2Dataset(PapyrusDataset):
             return Compose([
                 RegionImageCropAndRescale(ref_box_height=self.ref_box_size),
                 CropAndPad(image_size=self.image_size, with_randomness=True),
-                RandomHorizontalFlip(),
                 ImageTransformCompose([
                     torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([
