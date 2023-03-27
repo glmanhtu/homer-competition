@@ -29,8 +29,8 @@ if __name__ == "__main__":
         dataset = dataset_factory.get_dataset(args.dataset, args.mode, is_training=False,
                                               image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
                                               ref_box_size=args.ref_box_height, fold=fold, k_fold=args.k_fold)
-        pretrained_rgd_dir = os.path.join(args.region_detection_model_dir, f"fold_{fold}")
-        pretrained_ltd_dir = os.path.join(args.letter_detection_model_dir, f"fold_{fold}")
+        pretrained_rgd_dir = os.path.join(args.first_twin_model_dir, f"fold_{fold}")
+        pretrained_ltd_dir = os.path.join(args.second_twin_model_dir, f"fold_{fold}")
         net_predictor = Predictor(args, pretrained_rgd_dir, pretrained_ltd_dir,
                                   device=torch.device('cuda' if args.cuda else 'cpu'))
 

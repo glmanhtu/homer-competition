@@ -58,20 +58,6 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def convert_region_target(item):
-    boxes = torch.cat([item['regions'], item['boxes']], dim=0)
-    box_labels = (item['labels'] > 0).type(torch.int64)     # Label == 1 indicate the letter boxes
-    region_labels = item['region_labels'] + 1   # Label == 2 indicate the region boxes
-    labels = torch.cat([region_labels, box_labels], dim=0)
-    area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-    return {
-        'boxes': boxes,
-        'labels': labels,
-        'iscrowd': torch.zeros(labels.shape),
-        'area': area,
-        'image_id': item['image_id']
-    }
-
 def filter_boxes(region_box, boxes):
     """
         get only the boxes that are lying inside the region_box

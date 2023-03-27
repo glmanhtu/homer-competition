@@ -1,13 +1,11 @@
 import os
 
-import torch
 import torchvision
 
 from dataset.papyrus import PapyrusDataset
-from utils import misc
 from utils.misc import split_region
-from utils.transforms import Compose, RegionImageCropAndRescale, CropAndPad, ImageTransformCompose, ToTensor, \
-    LongRectangleCrop, RandomHorizontalFlip
+from utils.transforms import Compose, ImageRescale, CropAndPad, ImageTransformCompose, ToTensor, \
+    LongRectangleCrop
 
 
 class PapyrusP2Dataset(PapyrusDataset):
@@ -19,7 +17,7 @@ class PapyrusP2Dataset(PapyrusDataset):
     def get_transforms(self, is_training):
         if is_training:
             return Compose([
-                RegionImageCropAndRescale(ref_box_height=self.ref_box_size),
+                ImageRescale(ref_box_height=self.ref_box_size),
                 CropAndPad(image_size=self.image_size, with_randomness=True),
                 ImageTransformCompose([
                     torchvision.transforms.RandomGrayscale(p=0.3),
@@ -43,19 +41,13 @@ class PapyrusP2Dataset(PapyrusDataset):
         for i, image in enumerate(self.data['images']):
             image_name = os.path.basename(image['file_name'])
             if image_name in images:
-                for idx, region in enumerate(self.regions[image_name]):
-                    if 'PapyRegion' not in region['tags']:
-                        continue
-                    p = region['boundingBox']
-                    region_box = torch.as_tensor([p['left'], p['top'], p['left'] + p['width'], p['top'] + p['height']])
-                    boxes = misc.filter_boxes(region_box, self.boxes[image['bln_id']])
-                    if len(boxes) == 0:
-                        continue
-                    box_size = (boxes[:, 3] - boxes[:, 1]).mean()
-                    scale = (self.ref_box_size / box_size).item()
-                    region_width, region_height = p['width'] * scale, p['height'] * scale
-                    n_cols, n_rows = split_region(region_width, region_height, self.image_size)
-                    for col in range(n_cols):
-                        for row in range(n_rows):
-                            ids.append((i, [idx, n_cols, n_rows, col, row]))
+                boxes = self.boxes[image['bln_id']]
+                box_size = (boxes[:, 3] - boxes[:, 1]).mean()
+                scale = (self.ref_box_size / box_size).item()
+                rescaled_width, rescaled_height = image['width'] * scale, image['height'] * scale
+                n_cols, n_rows = split_region(rescaled_width, rescaled_height, self.image_size)
+                for col in range(n_cols):
+                    for row in range(n_rows):
+                        ids.append((i, [n_cols, n_rows, col, row]))
+
         return ids

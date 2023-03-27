@@ -90,8 +90,7 @@ class BalancedPositiveNegativeSampler:
         return pos_idx, neg_idx
 
 
-
-class LetterDetectionRCNN(nn.Module):
+class SecondTwinRCNN(nn.Module):
 
     def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()
@@ -112,20 +111,6 @@ class LetterDetectionRCNN(nn.Module):
         else:
             raise Exception(f'Arch {arch} is not implemented')
 
-        # anchor_sizes = (
-        #                    (
-        #                        32,
-        #                        64,
-        #                        96,
-        #                        128,
-        #                        160,
-        #                    ),
-        #                ) * 3
-        # aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
-        # rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
-        # rpn_head = RPNHead(256, rpn_anchor_generator.num_anchors_per_location()[0])
-        # model.rpn.anchor_generator = rpn_anchor_generator
-        # model.rpn.head = rpn_head
         roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
         model.roi_heads.box_roi_pool = roi_pool
         model.roi_heads.box_head = FastRCNNConvFCHead(

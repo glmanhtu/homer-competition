@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from utils import misc
 from utils.exceptions import NoGTBoundingBox
 from utils.transforms import Compose, LongRectangleCrop, RandomCropImage, PaddingImage, FixedImageResize, \
-    ImageTransformCompose, ToTensor, RandomHorizontalFlip, RandomVerticalFlip
+    ImageTransformCompose, ToTensor, RandomHorizontalFlip, RandomVerticalFlip, ConstantLabels
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -64,12 +64,6 @@ class PapyrusDataset(Dataset):
         with open(os.path.join(dataset_path, "HomerCompTrainingReadCoco.json")) as f:
             self.data = json.load(f)
 
-        self.regions = {}
-        with open(os.path.join(dataset_path, "CompetitionTraining-export.json")) as f:
-            regions = json.load(f)['assets']
-            for key, region in regions.items():
-                self.regions.setdefault(region['asset']['name'], []).extend(region['regions'])
-
         boxes = {}
         labels = {}
         for annotation in self.data['annotations']:
@@ -106,22 +100,24 @@ class PapyrusDataset(Dataset):
                 RandomHorizontalFlip(),
                 RandomVerticalFlip(),
                 LongRectangleCrop(),
-                RandomCropImage(min_factor=0.75, max_factor=1, min_iou_papyrus=0.2),
+                RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
                 FixedImageResize(self.image_size),
-                PaddingImage(padding_size=100),
+                PaddingImage(padding_size=20),
                 ImageTransformCompose([
                     torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([
                         torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
                     ], p=0.5)
                 ]),
+                ConstantLabels(value=1),
                 ToTensor()
             ])
         else:
             return Compose([
                 LongRectangleCrop(),
                 FixedImageResize(self.image_size),
-                PaddingImage(padding_size=100),
+                PaddingImage(padding_size=20),
+                ConstantLabels(value=1),
                 ToTensor()
             ])
 
@@ -148,25 +144,9 @@ class PapyrusDataset(Dataset):
         image_folder = img_url[-2]
         image_id = image['bln_id']
 
-        regions = []
-        region_labels = []
-        for region in self.regions[image_file]:
-            if 'PapyRegion' not in region['tags']:
-                continue
-            p = region['boundingBox']
-            xmin = p['left']
-            xmax = xmin + p['width']
-            ymin = p['top']
-            ymax = ymin + p['height']
-            regions.append([xmin, ymin, xmax, ymax])
-            region_labels.append(1)
-
         boxes = self.boxes[image_id].clone()
         labels = self.labels[image_id].clone()
 
-        regions = torch.as_tensor(regions, dtype=torch.float32)
-        region_labels = torch.as_tensor(region_labels, dtype=torch.int64)
-        region_area = (regions[:, 3] - regions[:, 1]) * (regions[:, 2] - regions[:, 0])
         image_id = torch.tensor([idx])
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         # suppose all instances are not crowd
@@ -176,9 +156,6 @@ class PapyrusDataset(Dataset):
         target = {
             "boxes": boxes,
             "labels": labels,
-            "regions": regions,
-            "region_labels": region_labels,
-            "region_area": region_area,
             "image_id": image_id,
             "area": area,
             "iscrowd": iscrowd,

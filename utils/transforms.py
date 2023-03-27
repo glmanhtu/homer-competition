@@ -1,16 +1,16 @@
 import copy
 import random
 from typing import Optional, Dict, Tuple
-from torchvision.transforms import functional as F
+
 import numpy as np
 import torch
 import torchvision
-import torchvision.ops.boxes as bops
 import torchvision.transforms
 from PIL import Image
 from torch import nn, Tensor
 from torchvision.models.detection.transform import GeneralizedRCNNTransform, _resize_image_and_masks, resize_boxes, \
     resize_keypoints
+from torchvision.transforms import functional as F
 
 from utils.exceptions import NoGTBoundingBox
 
@@ -71,17 +71,11 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     new_img = image.crop((int(new_x), int(new_y), int(new_x + new_width), int(new_y + new_height)))
     boxes = shift_coordinates(target['boxes'], new_x, new_y)
     boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
-    regions = shift_coordinates(target['regions'], new_x, new_y)
-    min_factor = 0.02
-    regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
-                                            min_w=new_width*min_factor, min_h=new_height*min_factor)
+
     target = copy.deepcopy(target)
     target['boxes'] = boxes
     target['labels'] = labels
-    target['regions'] = regions
-    target['region_labels'] = region_labels
     target['area'] = compute_area(boxes)
-    target['region_area'] = compute_area(regions)
     target['iscrowd'] = torch.zeros((labels.shape[0],), dtype=torch.int64)
     return new_img, target
 
@@ -92,7 +86,6 @@ class RandomHorizontalFlip(torchvision.transforms.RandomHorizontalFlip):
             image = F.hflip(image)
             if target is not None:
                 target["boxes"][:, [0, 2]] = image.width - target["boxes"][:, [2, 0]]
-                target["regions"][:, [0, 2]] = image.width - target["regions"][:, [2, 0]]
         return image, target
 
 
@@ -102,27 +95,22 @@ class RandomVerticalFlip(torchvision.transforms.RandomVerticalFlip):
             image = F.vflip(image)
             if target is not None:
                 target["boxes"][:, [1, 3]] = image.height - target["boxes"][:, [3, 1]]
-                target["regions"][:, [1, 3]] = image.height - target["regions"][:, [3, 1]]
         return image, target
 
 
-class RegionImageCropAndRescale(nn.Module):
+class ImageRescale(nn.Module):
 
     def __init__(self, ref_box_height=32):
         super().__init__()
         self.ref_box_height = ref_box_height
 
     def forward(self, image, target):
-        region_part, _, _, _, _ = target['image_part']
-        region = target['regions'][region_part].numpy()
-        min_x, min_y, width, height = region[0], region[1], region[2] - region[0], region[3] - region[1]
-        out_img, out_target = crop_image(image, target, min_x, min_y, width, height)
-        boxes = out_target['boxes']
+        boxes = target['boxes']
         if len(boxes) == 0:
             raise NoGTBoundingBox()
         box_height = (boxes[:, 3] - boxes[:, 1]).mean()
         scale = self.ref_box_height / box_height
-        return resize_sample(out_img, out_target, scale)
+        return resize_sample(image, target, scale)
 
 
 def tensor_delete(tensor, indices):
@@ -140,7 +128,7 @@ class CropAndPad(nn.Module):
         self.with_randomness = with_randomness
 
     def forward(self, image, target):
-        _, n_cols, n_rows, col, row = target['image_part']
+        n_cols, n_rows, col, row = target['image_part']
 
         # First create a big image that contains the whole fragement
         big_img_w, big_img_h = n_cols * self.image_size, n_rows * self.image_size
@@ -157,8 +145,6 @@ class CropAndPad(nn.Module):
 
         boxes = shift_coordinates(target['boxes'], -x, -y)
         target['boxes'] = boxes
-        regions = shift_coordinates(target['regions'], -x, -y)
-        target['regions'] = regions
 
         delta_w, delta_h = 0, 0
         if self.with_randomness:
@@ -218,8 +204,6 @@ class RandomCropImage(nn.Module):
         self.max_time_tries = max_time_tries
 
     def forward(self, image, target, n_times=0):
-        if len(target['regions']) == 0:
-            return image, target
         factor_width = random.randint(int(self.min_factor * 100), int(self.max_factor * 100)) / 100.
         factor_height = random.randint(int(self.min_factor * 100), int(self.max_factor * 100)) / 100.
         new_width, new_height = int(image.width * factor_width), int(image.height * factor_height)
@@ -230,14 +214,13 @@ class RandomCropImage(nn.Module):
         # Get a random x and y coordinate within the maximum values
         new_x = random.randint(0, max_x)
         new_y = random.randint(0, max_y)
-        patch = torch.tensor([new_x, new_y, new_x + new_width, new_y + new_height]).type(torch.float32)
 
-        for region in target['regions']:
-            iou = bops.box_iou(patch.view(1, -1), region.view(1, -1))
-            if iou > self.min_iou_papyrus:
-                return crop_image(image, target, new_x, new_y, new_width, new_height)
         if n_times > self.max_time_tries:
             return image, target
+
+        cropped_img, new_target = crop_image(image, target, new_x, new_y, new_width, new_height)
+        if len(new_target['boxes']) > 10:
+            return cropped_img, new_target
 
         return self.forward(image, target, n_times + 1)
 
@@ -264,9 +247,18 @@ class PaddingImage(nn.Module):
         result.paste(image, (left, top))
 
         target['boxes'] = shift_coordinates(target['boxes'], -left, -top)
-        target['regions'] = shift_coordinates(target['regions'], -left, -top)
 
         return result, target
+
+
+class ConstantLabels(nn.Module):
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+
+    def forward(self, image, target):
+        target['labels'] = torch.full(target['labels'].shape, self.value)
+        return image, target
 
 
 def compute_area(boxes):
@@ -282,11 +274,6 @@ def resize_sample(image, target, factor):
     target['boxes'][:, 2] *= factor_w
     target['boxes'][:, 3] *= factor_h
 
-    target['regions'][:, 0] *= factor_w
-    target['regions'][:, 1] *= factor_h
-    target['regions'][:, 2] *= factor_w
-    target['regions'][:, 3] *= factor_h
-    target['region_area'] = compute_area(target['regions'])
     target['area'] = compute_area(target['boxes'])
     return raw_image, target
 

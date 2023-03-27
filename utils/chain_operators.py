@@ -106,7 +106,7 @@ class FinalOperator:
         return data
 
 
-class RegionPredictionOperator(ChainOperator):
+class BoxHeightPredictionOperator(ChainOperator):
 
     def __init__(self, next_operator, region_model):
         super().__init__(next_operator)
@@ -118,13 +118,9 @@ class RegionPredictionOperator(ChainOperator):
         return predictions[0], None
 
     def backward(self, prediction, addition):
-        region_mask, box_mask = prediction['labels'] == 2, prediction['labels'] == 1
-        regions, boxes = prediction['boxes'][region_mask], prediction['boxes'][box_mask]
+        boxes = prediction['boxes']
         avg_box_height = (boxes[:, 3] - boxes[:, 1]).mean()
-        prediction['boxes'] = regions
-        prediction['labels'] = prediction['labels'][region_mask]
-        prediction['scores'] = prediction['scores'][region_mask]
-        prediction['box_height'] = avg_box_height.repeat(len(regions))
+        prediction['box_height'] = avg_box_height
         return prediction
 
 
@@ -226,7 +222,7 @@ class SplitRegionOperator(ChainOperator):
         return n_rows, n_cols
 
 
-class RegionsCropAndRescaleOperator(ChainOperator):
+class ImgRescaleOperator(ChainOperator):
 
     def __init__(self, next_operator, ref_box_height):
         super().__init__(next_operator)
@@ -234,33 +230,20 @@ class RegionsCropAndRescaleOperator(ChainOperator):
 
     def forward(self, data):
         image, prediction = data
-        out_images = []
-        scales = []
-        for region, box_height in zip(prediction['boxes'], prediction['box_height']):
-            crop_img = image.crop((int(region[0]), int(region[1]), int(region[2]), int(region[3])))
-            scale = self.ref_box_height / box_height.cpu().item()
-            new_img = crop_img.resize((int(crop_img.width * scale), int(crop_img.height * scale)))
-            out_images.append(new_img)
-            scales.append((new_img.width / crop_img.width, new_img.height / crop_img.height))
-        return out_images, (scales, prediction['boxes'])
+        box_height = prediction['box_height']
+        scale = self.ref_box_height / box_height.cpu().item()
+        new_img = image.resize((int(image.width * scale), int(image.height * scale)))
+        out_scale = new_img.width / image.width, new_img.height / image.height
+        return new_img, out_scale
 
-    def backward(self, data, addition):
-        scales, regions = addition
-        all_predictions = None
-        for scale, region, prediction in zip(scales, regions, data):
-            scale_w, scale_h = scale
-            prediction['boxes'][:, 0] /= scale_w
-            prediction['boxes'][:, 2] /= scale_w
-            prediction['boxes'][:, 1] /= scale_h
-            prediction['boxes'][:, 3] /= scale_h
-            prediction['boxes'] = shift_coordinates(prediction['boxes'], -int(region[0]), -int(region[1]))
+    def backward(self, prediction, addition):
+        scale_w, scale_h = addition
+        prediction['boxes'][:, 0] /= scale_w
+        prediction['boxes'][:, 2] /= scale_w
+        prediction['boxes'][:, 1] /= scale_h
+        prediction['boxes'][:, 3] /= scale_h
 
-            if all_predictions is None:
-                all_predictions = prediction
-            else:
-                all_predictions = merge_prediction(all_predictions, prediction, additional_keys=('labels', 'scores'))
-
-        return all_predictions
+        return prediction
 
 
 class BranchingOperator(ChainOperator):

@@ -13,10 +13,10 @@ from frcnn.coco_utils import convert_to_coco_api
 from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
-from utils.chain_operators import SplittingOperator, RegionsCropAndRescaleOperator, \
+from utils.chain_operators import SplittingOperator, ImgRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator, FinalOperator
 from utils.coco_summary import summarizeCustom
-from utils.misc import EarlyStop, display_terminal, display_terminal_eval, convert_region_target, LossLoging
+from utils.misc import EarlyStop, display_terminal, display_terminal_eval, LossLoging
 
 cpu_device = torch.device("cpu")
 
@@ -116,17 +116,23 @@ class Trainer:
                 wandb.log(save_dict, step=self._current_step)
                 display_terminal(iter_start_time, i_epoch, i_train_batch, len(self.data_loader_train), save_dict)
 
-    def validate(self, i_epoch, val_loader, mode='val', log_predictions=False):
+    def validate(self, i_epoch, val_loader, mode='val', log_predictions=False, max_dets=10000):
         self._model.set_eval()
-        if self.args.mode == 'region_detection':
-            val_fn = self.region_detection_validate
-        elif self.args.mode == 'letter_detection':
-            val_fn = self.letter_detection_validation
+
+        val_start_time = time.time()
+        coco = convert_to_coco_api(val_loader.dataset)
+        coco_evaluator = CocoEvaluator(coco, ["bbox"])
+        coco_evaluator.coco_eval['bbox'].params.maxDets = [max_dets]
+        coco_evaluator.coco_eval['bbox'].summarize = lambda: summarizeCustom(coco_evaluator.coco_eval['bbox'])
+
+        if self.args.mode == 'first_twin':
+            val_fn = self.second_twin_validate
+        elif self.args.mode == 'second_twin':
+            val_fn = self.first_twin_validation
         else:
             raise Exception(f'Train mode {self.args.mode} is not implemented!')
 
-        val_start_time = time.time()
-        coco_evaluator, val_dict, logging_imgs = val_fn(val_loader, log_predictions)
+        coco_evaluator, logging_imgs = val_fn(val_loader, coco_evaluator, log_predictions)
 
         coco_evaluator.synchronize_between_processes()
         coco_evaluator.accumulate()
@@ -134,21 +140,17 @@ class Trainer:
 
         coco_eval = coco_evaluator.coco_eval['bbox'].stats
 
-        val_dict.update({
+        val_dict = {
             f'{mode}/mAP_0.5:0.95': coco_eval[0],
             f'{mode}/mAP_0.5': coco_eval[1],
             f'{mode}/mAP_0.75': coco_eval[2],
-        })
+        }
         wandb.log(val_dict, step=self._current_step)
         display_terminal_eval(val_start_time, i_epoch, val_dict)
 
         return val_dict, logging_imgs
 
-    def letter_detection_validation(self, val_loader, log_predictions=False, max_dets=10000):
-        coco = convert_to_coco_api(val_loader.dataset)
-        coco_evaluator = CocoEvaluator(coco, ["bbox"])
-        coco_evaluator.coco_eval['bbox'].params.maxDets = [max_dets]
-        coco_evaluator.coco_eval['bbox'].summarize = lambda: summarizeCustom(coco_evaluator.coco_eval['bbox'])
+    def first_twin_validation(self, val_loader, coco_evaluator, log_predictions=False):
 
         to_pil_img = torchvision.transforms.ToPILImage()
         logging_imgs = []
@@ -160,23 +162,17 @@ class Trainer:
         predictor = SplittingOperator(predictor)
         predictor = SplitRegionOperator(predictor, self.args.p2_image_size)
         predictor = SplittingOperator(predictor)
-        predictor = RegionsCropAndRescaleOperator(predictor, self.args.ref_box_height)
+        predictor = ImgRescaleOperator(predictor, self.args.ref_box_height)
 
         for image, target in val_loader.dataset:
             pil_img = to_pil_img(image)
-            box_heights, regions = [], []
-            for region_box in target['regions']:
-                boxes = misc.filter_boxes(region_box, target['boxes'])
-                if len(boxes) > 0:
-                    box_heights.append((boxes[:, 3] - boxes[:, 1]).mean())
-                    regions.append(region_box)
-            if len(regions) == 0:
+            if len(target['boxes']) == 0:
                 continue
-                
+            box_height = (target['boxes'][:, 3] - target['boxes'][:, 1]).mean()
+
             # We will use the regions and box_height from GT to evaluate for now
             # These information should be predicted by the p1 network
-            region_info = {'boxes': torch.stack(regions), 'box_height': torch.stack(box_heights)}
-            predictions = predictor((pil_img, region_info))
+            predictions = predictor((pil_img, box_height))
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in [predictions]]
             res = {target["image_id"].item(): output for target, output in zip([target], outputs)}
             coco_evaluator.update(res)
@@ -187,22 +183,15 @@ class Trainer:
                                                   outputs[i]['labels'].type(torch.int64).numpy(),
                                                   outputs[i]['scores'].numpy())
                     logging_imgs.append(img)
+        return coco_evaluator, logging_imgs
 
-        return coco_evaluator, {}, logging_imgs
-
-    def region_detection_validate(self, val_loader, log_predictions=False, max_dets=10000):
-
-        coco = convert_to_coco_api(val_loader.dataset, convert_region_target)
-        coco_evaluator = CocoEvaluator(coco, ["bbox"])
-        coco_evaluator.coco_eval['bbox'].params.maxDets = [max_dets]
-        coco_evaluator.coco_eval['bbox'].summarize = lambda: summarizeCustom(coco_evaluator.coco_eval['bbox'])
+    def second_twin_validate(self, val_loader, coco_evaluator, log_predictions=False):
 
         logging_imgs = []
         for i_train_batch, batch in enumerate(val_loader):
             images, targets = batch
             region_predictions = self._model.forward(images)
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in region_predictions]
-            targets = [convert_region_target(x) for x in targets]
 
             res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
             coco_evaluator.update(res)
@@ -214,7 +203,7 @@ class Trainer:
                                                   outputs[i]['scores'].numpy())
                     logging_imgs.append(img)
 
-        return coco_evaluator, {}, logging_imgs
+        return coco_evaluator, logging_imgs
 
 
 if __name__ == "__main__":

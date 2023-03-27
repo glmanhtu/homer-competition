@@ -29,12 +29,12 @@ def resize_image(image, boxes, max_img_size):
     return raw_image, boxes
 
 
-def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, region_detection=False, max_img_size=600):
+def bounding_boxes(tensor_img, v_boxes, v_labels, v_scores, first_twin=False, max_img_size=600):
     # load raw input photo
     raw_image = torchvision.transforms.ToPILImage()(tensor_img)
     raw_image, v_boxes = resize_image(raw_image, v_boxes, max_img_size)
     all_boxes = []
-    label_mapping = class_id_to_label if region_detection else class_id_to_label_letter
+    label_mapping = class_id_to_label if first_twin else class_id_to_label_letter
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         box_data = {

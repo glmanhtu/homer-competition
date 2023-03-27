@@ -10,7 +10,7 @@ from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import wb_utils
 from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperator, ResizingImageOperator, \
-    RegionPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, RegionsCropAndRescaleOperator, \
+    BoxHeightPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, ImgRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator
 
 cpu_device = torch.device("cpu")
@@ -18,11 +18,11 @@ idx_to_letter = {v: k for k, v in letter_mapping.items()}
 
 
 class Predictor:
-    def __init__(self, args, region_detection_model_dir, letter_detection_model_dir, device):
-        self._region_model = ModelsFactory.get_model(args, 'region_detection', region_detection_model_dir,
+    def __init__(self, args, first_twin_model_dir, second_twin_model_dir, device):
+        self._region_model = ModelsFactory.get_model(args, 'first_twin', first_twin_model_dir,
                                                      is_train=False, device=device, dropout=args.dropout)
         self._region_model.load(without_optimiser=True)
-        self._letter_model = ModelsFactory.get_model(args, 'letter_detection', letter_detection_model_dir,
+        self._letter_model = ModelsFactory.get_model(args, 'second_twin', second_twin_model_dir,
                                                      is_train=False, device=device, dropout=args.dropout)
         self._letter_model.load(without_optimiser=True)
         self.args = args
@@ -41,11 +41,11 @@ class Predictor:
         letter_predictor = SplittingOperator(letter_predictor)
         letter_predictor = SplitRegionOperator(letter_predictor, self.args.p2_image_size)
         letter_predictor = SplittingOperator(letter_predictor)
-        letter_predictor = RegionsCropAndRescaleOperator(letter_predictor, self.args.ref_box_height)
+        letter_predictor = ImgRescaleOperator(letter_predictor, self.args.ref_box_height)
 
         # Operators for detecting papyrus regions and estimating box height
-        predictor = RegionPredictionOperator(FinalOperator(), self._region_model)
-        predictor = PaddingImageOperator(predictor, padding_size=100)
+        predictor = BoxHeightPredictionOperator(FinalOperator(), self._region_model)
+        predictor = PaddingImageOperator(predictor, padding_size=20)
         predictor = ResizingImageOperator(predictor, self.args.image_size)
         predictor = BranchingOperator(predictor, letter_predictor)
         predictor = SplittingOperator(predictor)
@@ -80,7 +80,7 @@ class Predictor:
 if __name__ == "__main__":
     train_args = TrainOptions().parse()
     working_dir = os.path.join(train_args.checkpoints_dir, train_args.name)
-    net_predictor = Predictor(train_args, region_detection_model_dir=working_dir, letter_detection_model_dir=working_dir,
+    net_predictor = Predictor(train_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
                               device=torch.device('cuda' if train_args.cuda else 'cpu'))
     dataset = dataset_factory.get_dataset(train_args.dataset, train_args.mode, is_training=False,
                                           image_size_p1=train_args.image_size, image_size_p2=train_args.p2_image_size,

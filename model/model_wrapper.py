@@ -2,10 +2,9 @@ import os
 
 import numpy as np
 import torch
-from torch import nn
 
 from criterions.optim import Optimizer, Scheduler
-from utils.misc import map_location, convert_region_target
+from utils.misc import map_location
 
 
 class ModelWrapper:
@@ -117,8 +116,6 @@ class ModelWrapper:
 
         all_losses = {}
         with torch.set_grad_enabled(self._is_train):
-            if self._mode == 'region_detection':
-                target = [convert_region_target(x) for x in target]
             losses = self._model(images, target)
             all_losses.update(losses)
 
