@@ -1,6 +1,10 @@
-from torch import nn
+from typing import List, Tuple
+
+import torch
+from torch import nn, Tensor
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn_v2, \
-    fasterrcnn_mobilenet_v3_large_fpn
+    fasterrcnn_mobilenet_v3_large_fpn, FastRCNNConvFCHead
+from torchvision.ops import MultiScaleRoIAlign
 
 
 class LetterDetectionRCNN(nn.Module):
@@ -38,6 +42,11 @@ class LetterDetectionRCNN(nn.Module):
         # rpn_head = RPNHead(256, rpn_anchor_generator.num_anchors_per_location()[0])
         # model.rpn.anchor_generator = rpn_anchor_generator
         # model.rpn.head = rpn_head
+        roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=14, sampling_ratio=2)
+        model.roi_heads.box_roi_pool = roi_pool
+        model.roi_heads.box_head = FastRCNNConvFCHead(
+            (model.backbone.out_channels, 14, 14), [256, 256, 256, 256], [1024], norm_layer=nn.BatchNorm2d
+        )
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         all_classes = n_classes + 1  # +1 class for background
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, all_classes)
