@@ -148,8 +148,8 @@ class CropAndPad(nn.Module):
 
         delta_w, delta_h = 0, 0
         if self.with_randomness:
-            delta_w = random.randint(0, int(0.3 * self.image_size)) * random.choice([-1, 1])
-            delta_h = random.randint(0, int(0.3 * self.image_size)) * random.choice([-1, 1])
+            delta_w = random.randint(0, int(0.2 * self.image_size)) * random.choice([-1, 1])
+            delta_h = random.randint(0, int(0.2 * self.image_size)) * random.choice([-1, 1])
 
         # Then crop the image using on the col and row provided
         gap_w = 0 if n_cols < 2 else (new_img.width - self.image_size) / (n_cols - 1)
