@@ -161,7 +161,6 @@ class Trainer:
         predictor = LetterDetectionOperator(FinalOperator(), self._model)
         predictor = SplittingOperator(predictor)
         predictor = SplitRegionOperator(predictor, self.args.p2_image_size)
-        predictor = SplittingOperator(predictor)
         predictor = ImgRescaleOperator(predictor, self.args.ref_box_height)
 
         for image, target in val_loader.dataset:
