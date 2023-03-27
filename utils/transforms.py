@@ -72,7 +72,7 @@ def crop_image(image, target, new_x, new_y, new_width, new_height):
     boxes = shift_coordinates(target['boxes'], new_x, new_y)
     boxes, labels = validate_boxes(boxes, target['labels'], new_width, new_height, drop_if_missing=True)
     regions = shift_coordinates(target['regions'], new_x, new_y)
-    min_factor = 0.05
+    min_factor = 0.02
     regions, region_labels = validate_boxes(regions, target['region_labels'], new_width, new_height,
                                             min_w=new_width*min_factor, min_h=new_height*min_factor)
     target = copy.deepcopy(target)
@@ -190,18 +190,18 @@ class LongRectangleCrop(nn.Module):
         min_x, min_y = 0, 0
         if image.height > image.width:
             new_height = int(self.split_at * image.height)
+            if self.with_randomness:
+                new_height = int(image.height * random.randint(6, 10) / 10)
             if image_part == 2:
                 min_x, min_y = 0, image.height - new_height
-            if self.with_randomness:
-                min_y = random.randint(0, image.height - new_height)
 
         elif image.width > image.height:
             new_width = int(self.split_at * image.width)
+            if self.with_randomness:
+                new_width = int(image.width * random.randint(6, 10) / 10)
+
             if image_part == 2:
                 min_x, min_y = image.width - new_width, 0
-
-            if self.with_randomness:
-                min_x = random.randint(0, image.width - new_width)
 
         else:
             return image, target
