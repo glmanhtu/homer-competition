@@ -172,7 +172,7 @@ class Trainer:
 
             # We will use the regions and box_height from GT to evaluate for now
             # These information should be predicted by the p1 network
-            predictions = predictor((pil_img, box_height))
+            predictions = predictor((pil_img, {'box_height': box_height}))
             outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in [predictions]]
             res = {target["image_id"].item(): output for target, output in zip([target], outputs)}
             coco_evaluator.update(res)
