@@ -57,7 +57,7 @@ class BalancedPositiveNegativeSampler:
             positive_region = torch.where(matched_idxs_per_image == 2)[0]
             perm_pos_region = torch.randperm(positive_region.numel(), device=positive.device)[:num_pos_region]
 
-            num_pos_boxes = num_pos - len(perm_pos_region)
+            num_pos_boxes = len(perm_pos_region) * 3
             positive_boxes = torch.where(matched_idxs_per_image == 1)[0]
             perm_pos_boxes = torch.randperm(positive_boxes.numel(), device=positive.device)[:num_pos_boxes]
 
@@ -158,9 +158,11 @@ class RegionDetectionRCNN(nn.Module):
                                                       box_detections_per_img=320)
         elif arch == 'resnet50':
             model = fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size, max_size=img_size,
-                                               box_nms_thresh=0.3, box_score_thresh=0.3,
+                                               box_score_thresh=0.3,
+                                               box_batch_size_per_image=128,
+                                               rpn_batch_size_per_image=128,
                                                box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
-                                               box_detections_per_img=320)
+                                               box_detections_per_img=128)
         else:
             raise Exception(f'Arch {arch} is not implemented')
 
@@ -169,10 +171,6 @@ class RegionDetectionRCNN(nn.Module):
             custom_post_process(model.roi_heads, class_logits, box_regression, proposals, image_shapes)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, n_classes)
-        model.rpn.fg_bg_sampler = BalancedPositiveNegativeSampler(
-            model.rpn.fg_bg_sampler.batch_size_per_image,
-            model.rpn.fg_bg_sampler.positive_fraction
-        )
         model.roi_heads.fg_bg_sampler = BalancedPositiveNegativeSampler(
             model.roi_heads.fg_bg_sampler.batch_size_per_image,
             model.roi_heads.fg_bg_sampler.positive_fraction

@@ -134,10 +134,6 @@ class LetterDetectionRCNN(nn.Module):
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         all_classes = n_classes + 1  # +1 class for background
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, all_classes)
-        model.rpn.fg_bg_sampler = BalancedPositiveNegativeSampler(
-            model.rpn.fg_bg_sampler.batch_size_per_image,
-            model.rpn.fg_bg_sampler.positive_fraction
-        )
         model.roi_heads.fg_bg_sampler = BalancedPositiveNegativeSampler(
             model.roi_heads.fg_bg_sampler.batch_size_per_image,
             model.roi_heads.fg_bg_sampler.positive_fraction
