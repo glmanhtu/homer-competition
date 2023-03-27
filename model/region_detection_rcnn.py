@@ -58,14 +58,13 @@ class BalancedPositiveNegativeSampler:
             perm_pos_region = torch.randperm(positive_region.numel(), device=positive.device)[:num_pos_region]
 
             num_pos_boxes = num_pos - len(perm_pos_region)
-            positive_region = torch.where(matched_idxs_per_image == 1)[0]
-            perm_pos_boxes = torch.randperm(positive_region.numel(), device=positive.device)[:num_pos_boxes]
+            positive_boxes = torch.where(matched_idxs_per_image == 1)[0]
+            perm_pos_boxes = torch.randperm(positive_boxes.numel(), device=positive.device)[:num_pos_boxes]
 
             # randomly select positive and negative examples
-            perm1 = torch.cat([perm_pos_region, perm_pos_boxes], dim=0)
             perm2 = torch.randperm(negative.numel(), device=negative.device)[:num_neg]
 
-            pos_idx_per_image = positive[perm1]
+            pos_idx_per_image = torch.cat([positive_region[perm_pos_region], positive_boxes[perm_pos_boxes]], dim=0)
             neg_idx_per_image = negative[perm2]
 
             # create binary mask from indices
