@@ -40,7 +40,6 @@ class Predictor:
         letter_predictor = LetterDetectionOperator(FinalOperator(), self._letter_model)
         letter_predictor = SplittingOperator(letter_predictor)
         letter_predictor = SplitRegionOperator(letter_predictor, self.args.p2_image_size)
-        letter_predictor = SplittingOperator(letter_predictor)
         letter_predictor = ImgRescaleOperator(letter_predictor, self.args.ref_box_height)
 
         # Operators for detecting papyrus regions and estimating box height
