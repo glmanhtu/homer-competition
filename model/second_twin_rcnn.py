@@ -3,7 +3,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrc
     fasterrcnn_mobilenet_v3_large_fpn
 
 
-class TwinRCNN(nn.Module):
+class SecondTwinRCNN(nn.Module):
 
     def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
         super().__init__()

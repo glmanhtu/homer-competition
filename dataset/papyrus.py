@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from utils import misc
 from utils.exceptions import NoGTBoundingBox
 from utils.transforms import Compose, LongRectangleCrop, RandomCropImage, PaddingImage, FixedImageResize, \
-    ImageTransformCompose, ToTensor, RandomHorizontalFlip, RandomVerticalFlip, ConstantLabels
+    ImageTransformCompose, ToTensor
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
