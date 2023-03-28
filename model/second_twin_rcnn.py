@@ -121,6 +121,12 @@ class SecondTwinRCNN(nn.Module):
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         all_classes = n_classes + 1  # +1 class for background
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, all_classes)
+        model.roi_heads.box_predictor.cls_score = nn.Sequential(
+            nn.Linear(in_features, in_features // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(in_features // 2, all_classes)
+        )
         # model.roi_heads.fg_bg_sampler = BalancedPositiveNegativeSampler(
         #     model.roi_heads.fg_bg_sampler.batch_size_per_image,
         #     model.roi_heads.fg_bg_sampler.positive_fraction
