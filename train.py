@@ -160,7 +160,7 @@ class Trainer:
         # Operators for localising letters inside each papyrus regions
         predictor = LetterDetectionOperator(FinalOperator(), self._model)
         predictor = SplittingOperator(predictor)
-        predictor = SplitRegionOperator(predictor, self.args.p2_image_size)
+        predictor = SplitRegionOperator(predictor, self.args.p2_image_size, self.args.merge_iou_threshold)
         predictor = ImgRescaleOperator(predictor, self.args.ref_box_height)
 
         for image, target in val_loader.dataset:

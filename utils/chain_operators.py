@@ -37,13 +37,14 @@ class SplittingOperator:
 
 
 class LongRectangleCropOperator(ChainOperator):
-    def __init__(self, next_operator, ratio_threshold=1.3, split_at=0.6):
+    def __init__(self, next_operator, ratio_threshold=1.3, split_at=0.6, merge_iou_threshold=0.3):
         """
             Crop the image into two halves if the shape of the image (either width or height) is too long
         """
         super().__init__(next_operator)
         self.ratio_threshold = ratio_threshold
         self.split_at = split_at
+        self.merge_iou_threshold = merge_iou_threshold
 
     def forward(self, image: Image):
         images = []
@@ -93,7 +94,8 @@ class LongRectangleCropOperator(ChainOperator):
             if all_predictions is None:
                 all_predictions = predictions
             else:
-                all_predictions = merge_prediction(all_predictions, predictions, additional_keys=('labels', 'scores'))
+                all_predictions = merge_prediction(all_predictions, predictions, iou_threshold=self.merge_iou_threshold,
+                                                   additional_keys=('labels', 'scores'))
 
         if all_predictions is None:
             all_predictions = {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
@@ -171,10 +173,11 @@ class LetterDetectionOperator(ChainOperator):
 
 class SplitRegionOperator(ChainOperator):
 
-    def __init__(self, next_operator, im_size, fill=(255, 255, 255)):
+    def __init__(self, next_operator, im_size, merge_iou_threshold=0.3, fill=(255, 255, 255)):
         super().__init__(next_operator)
         self.image_size = im_size
         self.fill = fill
+        self.merge_iou_threshold = merge_iou_threshold
 
     def forward(self, image: Image):
         n_rows, n_cols = self.split_region(image.width, image.height, self.image_size)
@@ -209,7 +212,8 @@ class SplitRegionOperator(ChainOperator):
             if all_predictions is None:
                 all_predictions = predictions
             else:
-                all_predictions = merge_prediction(all_predictions, predictions, additional_keys=('labels', 'scores'))
+                all_predictions = merge_prediction(all_predictions, predictions, iou_threshold=self.merge_iou_threshold,
+                                                   additional_keys=('labels', 'scores'))
 
         all_predictions['boxes'] = shift_coordinates(all_predictions['boxes'], start_point[0], start_point[1])
         return all_predictions

@@ -39,7 +39,7 @@ class Predictor:
         # Operators for localising letters inside each papyrus regions
         letter_predictor = LetterDetectionOperator(FinalOperator(), self._letter_model)
         letter_predictor = SplittingOperator(letter_predictor)
-        letter_predictor = SplitRegionOperator(letter_predictor, self.args.p2_image_size)
+        letter_predictor = SplitRegionOperator(letter_predictor, self.args.p2_image_size, self.args.merge_iou_threshold)
         letter_predictor = ImgRescaleOperator(letter_predictor, self.args.ref_box_height)
 
         # Operators for detecting papyrus regions and estimating box height
@@ -48,7 +48,7 @@ class Predictor:
         predictor = ResizingImageOperator(predictor, self.args.image_size)
         predictor = BranchingOperator(predictor, letter_predictor)
         predictor = SplittingOperator(predictor)
-        predictor = LongRectangleCropOperator(predictor)
+        predictor = LongRectangleCropOperator(predictor, merge_iou_threshold=self.args.merge_iou_threshold)
 
         annotations = []
         logging_imgs = []

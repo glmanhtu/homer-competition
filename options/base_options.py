@@ -34,6 +34,7 @@ class BaseOptions:
         self._parser.add_argument('--wb_project', type=str, default='homer-competition', help='Wandb project')
         self._parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
         self._parser.add_argument('--dropout', type=float, default=0.5, help="Default dropout")
+        self._parser.add_argument('--merge_iou_threshold', type=float, default=0.3, help="Threshold for merging boxes")
 
         self._initialized = True
 
