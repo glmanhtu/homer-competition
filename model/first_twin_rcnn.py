@@ -11,7 +11,7 @@ class FirstTwinRCNN(nn.Module):
             model = fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size, trainable_backbone_layers=5,
                                                max_size=img_size, rpn_batch_size_per_image=256,
                                                box_batch_size_per_image=512,
-                                               box_nms_thresh=0.5, box_score_thresh=0.2,
+                                               box_nms_thresh=0.5, box_score_thresh=0.7,
                                                box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
                                                box_positive_fraction=0.4,
                                                box_detections_per_img=320)
