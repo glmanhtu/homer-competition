@@ -97,8 +97,6 @@ class PapyrusDataset(Dataset):
     def get_transforms(self, is_training):
         if is_training:
             return Compose([
-                RandomHorizontalFlip(),
-                RandomVerticalFlip(),
                 LongRectangleCrop(),
                 RandomCropImage(min_factor=0.6, max_factor=1, min_iou_papyrus=0.2),
                 FixedImageResize(self.image_size),
