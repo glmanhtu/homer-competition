@@ -23,7 +23,7 @@ class PapyrusP2Dataset(PapyrusDataset):
                 ImageRescale(ref_box_height=self.ref_box_size),
                 CropAndPad(image_size=self.image_size, with_randomness=True),
                 ImageTransformCompose([
-                    # torchvision.transforms.RandomGrayscale(p=0.3),
+                    torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([
                         torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
                     ], p=0.5)
