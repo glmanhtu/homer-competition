@@ -109,7 +109,6 @@ class PapyrusDataset(Dataset):
                         torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
                     ], p=0.5)
                 ]),
-                ConstantLabels(value=1),
                 ToTensor()
             ])
         else:
@@ -117,7 +116,6 @@ class PapyrusDataset(Dataset):
                 LongRectangleCrop(),
                 FixedImageResize(self.image_size),
                 PaddingImage(padding_size=20),
-                ConstantLabels(value=1),
                 ToTensor()
             ])
 
