@@ -35,10 +35,10 @@ def generate_dataset(ds, out_path, label_path):
             height = box[3] - box[1]
             row = {
                 'class': label.item() - 1,
-                'x_center': x_center / im_w,
-                'y_center': y_center / im_h,
-                'width': width / im_w,
-                'height': height / im_h
+                'x_center': (x_center / im_w).item(),
+                'y_center': (y_center / im_h).item(),
+                'width': (width / im_w).item(),
+                'height': (height / im_h).item()
             }
             records.append(row)
 
@@ -56,8 +56,8 @@ generate_dataset(test_dataset, os.path.join(args.output_dataset, 'images', 'val'
 
 config = {
     'path': args.output_dataset,
-    'train': os.path.join(args.output_dataset, 'train'),
-    'val': os.path.join(args.output_dataset, 'val'),
+    'train': os.path.join(args.output_dataset, 'images', 'train'),
+    'val': os.path.join(args.output_dataset, 'images', 'val'),
     'names': {v - 1: k for k, v in letter_mapping.items()}
 }
 
