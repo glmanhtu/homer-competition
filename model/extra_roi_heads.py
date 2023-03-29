@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple, Optional
 import torch.nn.functional as F
 import torch
+import torchvision
 from torch import Tensor
 from torchvision.models.detection.roi_heads import RoIHeads
 
@@ -51,10 +52,9 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
     N, num_classes = class_logits.shape
     box_regression = box_regression.reshape(N, box_regression.size(-1) // 4, 4)
 
-    box_loss = F.smooth_l1_loss(
+    box_loss = torchvision.ops.generalized_box_iou_loss(
         box_regression[sampled_pos_inds_subset, labels_pos],
         regression_targets[sampled_pos_inds_subset],
-        beta=1 / 9,
         reduction="sum",
     )
     box_loss = box_loss / labels.numel()
