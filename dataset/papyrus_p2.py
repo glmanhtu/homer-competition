@@ -1,14 +1,11 @@
-import copy
 import os
 
 import torch
-import torchvision
 
 from dataset.papyrus import PapyrusDataset
 from utils import misc
 from utils.misc import split_region
-from utils.transforms import Compose, ImageRescale, CropAndPad, ImageTransformCompose, ToTensor, \
-    LongRectangleCrop
+from utils.transforms import Compose, ImageRescale, CropAndPad, ToTensor
 
 
 class PapyrusP2Dataset(PapyrusDataset):
@@ -21,19 +18,12 @@ class PapyrusP2Dataset(PapyrusDataset):
         if is_training:
             return Compose([
                 ImageRescale(ref_box_height=self.ref_box_size),
-                CropAndPad(image_size=self.image_size, with_randomness=True),
-                ImageTransformCompose([
-                    torchvision.transforms.RandomGrayscale(p=0.3),
-                    torchvision.transforms.RandomApply([
-                        torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
-                    ], p=0.5)
-                ]),
-                ToTensor()
+                CropAndPad(image_size=self.image_size),
             ])
         else:
             return Compose([
-                LongRectangleCrop(),
-                ToTensor()
+                ImageRescale(ref_box_height=self.ref_box_size),
+                CropAndPad(image_size=self.image_size),
             ])
 
     def validate_region(self, boxes, n_cols, n_rows, col, row, image_width, image_height):
@@ -49,9 +39,6 @@ class PapyrusP2Dataset(PapyrusDataset):
         return len(region_boxes) > 0
 
     def split_image(self, images):
-        if not self.is_training:
-            # In evaluation mode, we use only split image method on p1
-            return super().split_image(images)
         ids = []
         for i, image in enumerate(self.data['images']):
             image_name = os.path.basename(image['file_name'])

@@ -11,6 +11,7 @@ class TrainOptions(BaseOptions):
     def initialize(self):
         BaseOptions.initialize(self)
         self._parser.add_argument('--optimizer', type=str, default='Adam')
+        self._parser.add_argument('--output_dataset', type=str, required=True)
         self._parser.add_argument('--resume', action='store_true', help="Resume training")
         self._parser.add_argument('--save_freq_iter', type=int, default=10,
                                   help='save the training losses to the summary writer every # iterations')
