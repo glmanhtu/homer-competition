@@ -25,7 +25,7 @@ to_img = torchvision.transforms.ToPILImage()
 for image, target in dataset:
     dpi = 80
 
-    image = np.asarray(to_img(image))
+    image = np.asarray(image)
 
     # origin_w, origin_h, _ = image.shape
 
