@@ -1,6 +1,7 @@
 import csv
 import os
 
+import tqdm
 import yaml
 
 from dataset.papyrus import letter_mapping
@@ -19,11 +20,10 @@ def generate_dataset(ds, out_path, label_path):
     os.makedirs(out_path, exist_ok=True)
     os.makedirs(label_path, exist_ok=True)
 
-    for image, target in ds:
+    for image, target in tqdm.tqdm(ds):
         image_id = target['image_id'].item()
         n_cols, n_rows, col, row = tuple(target['image_part'].numpy())
         image_name = f'{image_id}-{n_cols}_{n_rows}_{col}_{row}'
-        image.save(os.path.join(out_path, image_name + ".jpg"))
 
         im_w, im_h = image.width, image.height
 
@@ -43,8 +43,10 @@ def generate_dataset(ds, out_path, label_path):
             records.append(row)
 
         with open(os.path.join(label_path, image_name + '.txt'), 'w') as f:
-            dict_writer = csv.DictWriter(f, fieldnames=records[0].keys())
+            dict_writer = csv.DictWriter(f, fieldnames=['class', 'x_center', 'y_center', 'width', 'height'])
             dict_writer.writerows(records)
+
+        image.save(os.path.join(out_path, image_name + ".jpg"))
 
 
 generate_dataset(train_dataset, os.path.join(args.output_dataset, 'images', 'train'),
