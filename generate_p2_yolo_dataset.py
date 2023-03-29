@@ -43,7 +43,8 @@ def generate_dataset(ds, out_path, label_path):
             records.append(row)
 
         with open(os.path.join(label_path, image_name + '.txt'), 'w') as f:
-            dict_writer = csv.DictWriter(f, fieldnames=['class', 'x_center', 'y_center', 'width', 'height'])
+            dict_writer = csv.DictWriter(f, fieldnames=['class', 'x_center', 'y_center', 'width', 'height'],
+                                         delimiter=' ')
             dict_writer.writerows(records)
 
         image.save(os.path.join(out_path, image_name + ".jpg"))
