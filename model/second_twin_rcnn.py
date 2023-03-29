@@ -1,6 +1,10 @@
+import torch
 from torch import nn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn_v2, \
     fasterrcnn_mobilenet_v3_large_fpn
+import torch.nn.functional as F
+from criterions.loss import FocalLoss
+from model import extra_roi_heads
 
 
 class SecondTwinRCNN(nn.Module):
@@ -31,6 +35,8 @@ class SecondTwinRCNN(nn.Module):
         # model.roi_heads.box_head = FastRCNNConvFCHead(
         #     (model.backbone.out_channels, 14, 14), [256, 256, 256, 256], [1024], norm_layer=nn.BatchNorm2d
         # )
+        roi_head = extra_roi_heads.from_origin(model.roi_heads)
+        model.roi_heads = roi_head
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         all_classes = n_classes + 1  # +1 class for background
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, all_classes)
@@ -40,6 +46,9 @@ class SecondTwinRCNN(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(in_features // 2, all_classes)
         )
+
+        # Replace the loss function with Focal Loss
+        model.roi_heads.box_predictor.cls_loss_func = FocalLoss()
         # model.roi_heads.fg_bg_sampler = BalancedPositiveNegativeSampler(
         #     model.roi_heads.fg_bg_sampler.batch_size_per_image,
         #     model.roi_heads.fg_bg_sampler.positive_fraction

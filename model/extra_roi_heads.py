@@ -1,27 +1,68 @@
 from typing import Dict, List, Tuple, Optional
-
+import torch.nn.functional as F
 import torch
 from torch import Tensor
-from torchvision.models.detection.roi_heads import RoIHeads, fastrcnn_loss
+from torchvision.models.detection.roi_heads import RoIHeads
+
+from criterions.loss import FocalLoss
 
 
-def from_origin(roi: RoIHeads, extra_head, extra_criterion):
-    return ExtraRoiHeads(roi.box_roi_pool,
-                         roi.box_head,
-                         roi.box_predictor,
-                         roi.proposal_matcher.high_threshold,
-                         roi.proposal_matcher.low_threshold,
-                         roi.fg_bg_sampler.batch_size_per_image,
-                         roi.fg_bg_sampler.positive_fraction,
-                         roi.box_coder.weights,
-                         roi.score_thresh,
-                         roi.nms_thresh,
-                         roi.detections_per_img,
-                         extra_head,
-                         extra_criterion)
+def from_origin(roi: RoIHeads):
+    return CustomRoiHeads(roi.box_roi_pool,
+                          roi.box_head,
+                          roi.box_predictor,
+                          roi.proposal_matcher.high_threshold,
+                          roi.proposal_matcher.low_threshold,
+                          roi.fg_bg_sampler.batch_size_per_image,
+                          roi.fg_bg_sampler.positive_fraction,
+                          roi.box_coder.weights,
+                          roi.score_thresh,
+                          roi.nms_thresh,
+                          roi.detections_per_img)
 
 
-class ExtraRoiHeads(RoIHeads):
+def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
+    # type: (Tensor, Tensor, List[Tensor], List[Tensor]) -> Tuple[Tensor, Tensor]
+    """
+    Computes the loss for Faster R-CNN.
+
+    Args:
+        class_logits (Tensor)
+        box_regression (Tensor)
+        labels (list[BoxList])
+        regression_targets (Tensor)
+
+    Returns:
+        classification_loss (Tensor)
+        box_loss (Tensor)
+    """
+
+    labels = torch.cat(labels, dim=0)
+    regression_targets = torch.cat(regression_targets, dim=0)
+    loss_fn = FocalLoss()
+
+    classification_loss = loss_fn(class_logits, labels)
+
+    # get indices that correspond to the regression targets for
+    # the corresponding ground truth labels, to be used with
+    # advanced indexing
+    sampled_pos_inds_subset = torch.where(labels > 0)[0]
+    labels_pos = labels[sampled_pos_inds_subset]
+    N, num_classes = class_logits.shape
+    box_regression = box_regression.reshape(N, box_regression.size(-1) // 4, 4)
+
+    box_loss = F.smooth_l1_loss(
+        box_regression[sampled_pos_inds_subset, labels_pos],
+        regression_targets[sampled_pos_inds_subset],
+        beta=1 / 9,
+        reduction="sum",
+    )
+    box_loss = box_loss / labels.numel()
+
+    return classification_loss, box_loss
+
+
+class CustomRoiHeads(RoIHeads):
     def __init__(self, box_roi_pool,
                  box_head,
                  box_predictor,
@@ -32,15 +73,11 @@ class ExtraRoiHeads(RoIHeads):
                  # Faster R-CNN inference
                  score_thresh,
                  nms_thresh,
-                 detections_per_img,
-                 extra_head,
-                 extra_criterion
+                 detections_per_img
                  ):
-        super(ExtraRoiHeads, self).__init__(box_roi_pool, box_head, box_predictor, fg_iou_thresh, bg_iou_thresh,
-                                            batch_size_per_image, positive_fraction, bbox_reg_weights, score_thresh,
-                                            nms_thresh, detections_per_img)
-        self.extra_head = extra_head
-        self.extra_criterion = extra_criterion
+        super(CustomRoiHeads, self).__init__(box_roi_pool, box_head, box_predictor, fg_iou_thresh, bg_iou_thresh,
+                                             batch_size_per_image, positive_fraction, bbox_reg_weights, score_thresh,
+                                             nms_thresh, detections_per_img)
 
     def forward(self,
                 features,  # type: Dict[str, Tensor]
@@ -97,40 +134,5 @@ class ExtraRoiHeads(RoIHeads):
                         "scores": scores[i],
                     }
                 )
-
-        # AU predictions
-        box_proposals = [p["boxes"] for p in result]
-        label_proposals = [p["labels"] for p in result]
-        if self.training:
-            # during training, only focus on positive boxes
-            num_images = len(proposals)
-            box_proposals = []
-            label_proposals = []
-            pos_matched_idxs = []
-            assert matched_idxs is not None
-            for img_id in range(num_images):
-                pos = torch.where(labels[img_id] > 0)[0]
-                box_proposals.append(proposals[img_id][pos])
-                label_proposals.append(labels[img_id][pos])
-                pos_matched_idxs.append(matched_idxs[img_id][pos])
-        else:
-            pos_matched_idxs = None
-        extra_predictions = self.extra_head(features, box_proposals, image_shapes)
-
-        loss_extra_head = {}
-        if self.training:
-            assert targets is not None
-            assert pos_matched_idxs is not None
-
-            loss_extra_head = {
-                "loss_extra_head": self.extra_criterion(extra_predictions, box_proposals, targets, pos_matched_idxs),
-            }
-        else:
-            assert extra_predictions is not None
-            extra_predictions = self.extra_criterion.post_prediction(extra_predictions, label_proposals)
-            for r, ex in zip(result, extra_predictions):
-                r['extra_head_pred'] = ex
-
-        losses.update(loss_extra_head)
 
         return result, losses
