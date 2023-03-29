@@ -84,7 +84,7 @@ class PapyrusDataset(Dataset):
             self.boxes[key] = torch.as_tensor(boxes[key], dtype=torch.float32)
             self.labels[key] = torch.as_tensor(labels[key], dtype=torch.int64)
 
-        self.imgs = self.split_image(images)
+        self.imgs, self.no_boxes_imgs = self.split_image(images)
 
     def get_bln_id(self, idx):
         image_path, part = self.imgs[idx]
@@ -92,7 +92,7 @@ class PapyrusDataset(Dataset):
         return image['bln_id']
 
     def __len__(self):
-        return len(self.imgs)
+        return len(self.imgs) + len(self.no_boxes_imgs)
 
     def get_transforms(self, is_training):
         if is_training:
@@ -127,13 +127,16 @@ class PapyrusDataset(Dataset):
                     ids.append((i, 2))
                 else:
                     ids.append((i, 0))
-        return ids
+        return ids, []
 
     def __getitem__(self, idx):
         return self.__get_item_by_idx(idx)
 
     def __get_item_by_idx(self, idx):
-        image_idx, part = self.imgs[idx]
+        if idx < len(self.imgs):
+            image_idx, part = self.imgs[idx]
+        else:
+            image_idx, part = random.choice(self.no_boxes_imgs[idx])
         image = self.data['images'][image_idx]
         img_url = image['img_url'].split('/')
         image_file = img_url[-1]

@@ -27,4 +27,4 @@ class PapyrusValDataset(PapyrusDataset):
         for i, image in enumerate(self.data['images']):
             if os.path.basename(image['file_name']) in images:
                 ids.append((i, 0))
-        return ids
+        return ids, []
