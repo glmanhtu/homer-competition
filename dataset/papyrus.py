@@ -136,7 +136,7 @@ class PapyrusDataset(Dataset):
         if idx < len(self.imgs):
             image_idx, part = self.imgs[idx]
         else:
-            image_idx, part = random.choice(self.no_boxes_imgs[idx])
+            image_idx, part = random.choice(self.no_boxes_imgs[idx - len(self.imgs)])
         image = self.data['images'][image_idx]
         img_url = image['img_url'].split('/')
         image_file = img_url[-1]
