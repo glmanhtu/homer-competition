@@ -13,7 +13,8 @@ from torchvision.models.detection.transform import GeneralizedRCNNTransform, _re
 from torchvision.transforms import functional as F
 
 from utils.exceptions import NoGTBoundingBox
-
+import albumentations as A
+import cv2
 
 class Compose:
     def __init__(self, transforms):
@@ -23,6 +24,26 @@ class Compose:
         for t in self.transforms:
             image, target = t(image, target)
         return image, target
+
+
+class AlbumentationWrapper(nn.Module):
+    def __init__(self, transforms, min_area=512, min_visibility=0.3):
+        super().__init__()
+        transforms = transforms
+        self.transform = A.Compose(
+            transforms,
+            bbox_params=A.BboxParams(format='pascal_voc', min_area=min_area, min_visibility=min_visibility,
+                                    label_fields=['category_ids']))
+
+    def forward(self, image, target):
+        transformed = self.transform(image=np.asarray(image), bboxes=target['boxes'], category_ids=target['labels'])
+        out_imp = Image.fromarray(transformed['image'])
+        boxes = torch.tensor(transformed['bboxes'])
+        labels = torch.stack(transformed['category_ids'])
+        boxes, labels = validate_boxes(boxes, labels, out_imp.width, out_imp.height, drop_if_missing=True)
+        target['boxes'] = boxes
+        target['labels'] = labels
+        return out_imp, target
 
 
 def shift_coordinates(coordinates, offset_x, offset_y):
