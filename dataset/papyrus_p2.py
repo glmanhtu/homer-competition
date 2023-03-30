@@ -23,13 +23,13 @@ class PapyrusP2Dataset(PapyrusDataset):
         if is_training:
             return Compose([
                 ImageRescale(ref_box_height=self.ref_box_size),
-                PaddingImage(padding_size=100),
-                AlbumentationWrapper([
-                    A.Perspective(scale=(0.05, 0.1), keep_size=True, pad_mode=0, pad_val=255,
-                                  mask_pad_val=0, fit_output=False, interpolation=1, always_apply=False, p=0.5),
-                    # A.Rotate(limit=10, interpolation=1, border_mode=4, value=255, mask_value=None,
-                    #        rotate_method='largest_box', crop_border=False, always_apply=False, p=0.5)
-                ]),
+                # PaddingImage(padding_size=100),
+                # AlbumentationWrapper([
+                #     A.Perspective(scale=(0.05, 0.1), keep_size=True, pad_mode=0, pad_val=255,
+                #                   mask_pad_val=0, fit_output=False, interpolation=1, always_apply=False, p=0.5),
+                #     A.Rotate(limit=10, interpolation=1, border_mode=4, value=255, mask_value=None,
+                #            rotate_method='largest_box', crop_border=False, always_apply=False, p=0.5)
+                # ]),
                 CropAndPad(image_size=self.image_size, with_randomness=True),
                 ImageTransformCompose([
                     torchvision.transforms.RandomApply([
@@ -77,5 +77,5 @@ class PapyrusP2Dataset(PapyrusDataset):
                             no_box_ids.append((i, [n_cols, n_rows, col, row]))
                         else:
                             ids.append((i, [n_cols, n_rows, col, row]))
-        no_box_ids = list(chunks(no_box_ids, 10))
+        no_box_ids = list(chunks(no_box_ids, int(0.02 * len(ids))))
         return ids, no_box_ids

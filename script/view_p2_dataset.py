@@ -10,7 +10,7 @@ from options.train_options import TrainOptions
 from utils import misc
 from utils.transforms import Compose, ImageTransformCompose, ImageRescale, CropAndPad
 
-matplotlib.use('MacOSX')
+# matplotlib.use('MacOSX')
 class_id_to_label_letter = {v: str(k) for k, v in letter_mapping.items()}
 
 args = TrainOptions(save_conf=False).parse()
