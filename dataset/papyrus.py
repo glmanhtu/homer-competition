@@ -54,12 +54,12 @@ class PapyrusDataset(Dataset):
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.JPG'), recursive=True))
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.png'), recursive=True))
         images = sorted([os.path.basename(x) for x in images])
-        folds = list(misc.chunks(images, k_fold))
-        if is_training:
-            del folds[fold]
-            images = misc.flatten(folds)
-        else:
-            images = folds[fold]
+        # folds = list(misc.chunks(images, k_fold))
+        # if is_training:
+        #     del folds[fold]
+        #     images = misc.flatten(folds)
+        # else:
+        #     images = folds[fold]
 
         with open(os.path.join(dataset_path, "HomerCompTrainingReadCoco.json")) as f:
             self.data = json.load(f)
