@@ -31,7 +31,7 @@ class SecondTwinRCNN(nn.Module):
                                                box_detections_per_img=320)
         elif arch == 'resnet_custom':
             backbone = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1, progress=True)
-            backbone = _resnet_fpn_extractor(backbone, 5, returned_layers=[2],
+            backbone = _resnet_fpn_extractor(backbone, 5, returned_layers=[3],
                                              norm_layer=nn.BatchNorm2d, extra_blocks=NoExtraBlock())
             anchor_sizes = ((64, 96, 128,),)
             aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
