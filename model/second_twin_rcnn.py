@@ -1,5 +1,5 @@
 from torch import nn
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import resnet50, ResNet50_Weights, resnet101, ResNet101_Weights
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import _resnet_fpn_extractor
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn_v2, \
@@ -29,11 +29,10 @@ class SecondTwinRCNN(nn.Module):
                                                box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
                                                box_positive_fraction=0.4,
                                                box_detections_per_img=320)
-        elif arch == 'resnet_custom':
-            backbone = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1, progress=True)
-            backbone = _resnet_fpn_extractor(backbone, 5, returned_layers=[3],
-                                             norm_layer=nn.BatchNorm2d, extra_blocks=NoExtraBlock())
-            anchor_sizes = ((64, 96, 128,),)
+        elif arch == 'resnet101':
+            backbone = resnet101(weights=ResNet101_Weights.IMAGENET1K_V1, progress=True)
+            backbone = _resnet_fpn_extractor(backbone, 5, norm_layer=nn.BatchNorm2d)
+            anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
             aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
             rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
             rpn_head = RPNHead(backbone.out_channels, rpn_anchor_generator.num_anchors_per_location()[0], conv_depth=2)
