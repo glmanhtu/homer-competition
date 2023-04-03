@@ -1,20 +1,22 @@
 import json
 import os.path
 
+import matplotlib
 import torch
-import torchvision.transforms
 
-from dataset import dataset_factory
 from dataset.papyrus import letter_mapping
+from dataset.papyrus_test import PapyrusTestDataset
 from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import wb_utils
 from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperator, ResizingImageOperator, \
     BoxHeightPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, ImgRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator
+from utils.debug_utils import visualise_boxes
 
 cpu_device = torch.device("cpu")
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
+matplotlib.use('MacOSX')
 
 
 class Predictor:
@@ -31,8 +33,6 @@ class Predictor:
         # set model to eval
         self._region_model.set_eval()
         self._letter_model.set_eval()
-
-        to_pil_img = torchvision.transforms.ToPILImage()
 
         # NOTE: The operators below should be read from bottom up
 
@@ -52,13 +52,13 @@ class Predictor:
 
         annotations = []
         logging_imgs = []
-        for idx, (image, _) in enumerate(ds):
-            pil_img = to_pil_img(image)
+        for idx, pil_img in enumerate(ds):
             img_predictions = predictor(pil_img)
             outputs = {k: v.to(cpu_device) for k, v in img_predictions.items()}
 
+            visualise_boxes(pil_img, outputs['boxes'])
             if log_imgs and len(outputs['boxes']) > 0:
-                img = wb_utils.bounding_boxes(image, outputs['boxes'].numpy(),
+                img = wb_utils.bounding_boxes(pil_img, outputs['boxes'].numpy(),
                                               outputs['labels'].type(torch.int64).numpy(),
                                               outputs['scores'].numpy())
                 logging_imgs.append(img)
@@ -79,11 +79,9 @@ class Predictor:
 if __name__ == "__main__":
     train_args = TrainOptions().parse()
     working_dir = os.path.join(train_args.checkpoints_dir, train_args.name)
+    dataset = PapyrusTestDataset(train_args.dataset)
     net_predictor = Predictor(train_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
                               device=torch.device('cuda' if train_args.cuda else 'cpu'))
-    dataset = dataset_factory.get_dataset(train_args.dataset, train_args.mode, is_training=False,
-                                          image_size_p1=train_args.image_size, image_size_p2=train_args.p2_image_size,
-                                          ref_box_size=train_args.ref_box_height)
     predictions, _ = net_predictor.predict_all(dataset)
     with open(os.path.join("template.json")) as f:
         json_output = json.load(f)
