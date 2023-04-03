@@ -1,5 +1,5 @@
 from torch import nn
-from torchvision.models import resnet50, ResNet50_Weights, resnet101, ResNet101_Weights
+from torchvision.models import resnet50, ResNet50_Weights, resnet101, ResNet101_Weights, resnet34, ResNet34_Weights
 from torchvision.models.detection.anchor_utils import AnchorGenerator
 from torchvision.models.detection.backbone_utils import _resnet_fpn_extractor
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrcnn_resnet50_fpn_v2, \
@@ -31,6 +31,30 @@ class SecondTwinRCNN(nn.Module):
                                                box_detections_per_img=320)
         elif arch == 'resnet101':
             backbone = resnet101(weights=ResNet101_Weights.IMAGENET1K_V1, progress=True)
+            backbone = _resnet_fpn_extractor(backbone, 5, norm_layer=nn.BatchNorm2d)
+            anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
+            aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
+            rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
+            rpn_head = RPNHead(backbone.out_channels, rpn_anchor_generator.num_anchors_per_location()[0], conv_depth=2)
+            box_head = FastRCNNConvFCHead(
+                (backbone.out_channels, 7, 7), [256, 256, 256, 256], [1024], norm_layer=nn.BatchNorm2d
+            )
+            model = FasterRCNN(
+                backbone,
+                num_classes=n_classes + 1,
+                rpn_anchor_generator=rpn_anchor_generator,
+                rpn_head=rpn_head,
+                box_head=box_head,
+                min_size=img_size,
+                max_size=img_size, rpn_batch_size_per_image=256,
+                box_batch_size_per_image=512,
+                box_nms_thresh=0.5, box_score_thresh=0.2,
+                box_positive_fraction=0.4,
+                box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
+                box_detections_per_img=320
+            )
+        elif arch == 'resnet34':
+            backbone = resnet34(weights=ResNet34_Weights.IMAGENET1K_V1, progress=True)
             backbone = _resnet_fpn_extractor(backbone, 5, norm_layer=nn.BatchNorm2d)
             anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
             aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
