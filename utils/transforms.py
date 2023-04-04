@@ -26,6 +26,11 @@ class Compose:
         return image, target
 
 
+class DropTarget:
+    def __call__(self, image, target):
+        return image
+
+
 class AlbumentationWrapper(nn.Module):
     def __init__(self, transforms, min_area=512, min_visibility=0.3):
         super().__init__()

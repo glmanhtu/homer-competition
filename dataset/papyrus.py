@@ -164,11 +164,8 @@ class PapyrusDataset(Dataset):
         fname = os.path.join(src_folder, image_folder, image_file)
         with Image.open(fname) as f:
             img = f.convert('RGB')
-        if self.transforms is not None:
-            try:
-                return self.transforms(img, target)
-            except NoGTBoundingBox:
-                next_index = random.randint(0, len(self.imgs) - 1)
-                return self.__get_item_by_idx(next_index)
-
-        return img, target
+        try:
+            return self.transforms(img, target)
+        except NoGTBoundingBox:
+            next_index = random.randint(0, len(self.imgs) - 1)
+            return self.__get_item_by_idx(next_index)

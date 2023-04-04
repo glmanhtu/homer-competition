@@ -2,7 +2,7 @@ import math
 import os
 
 from dataset.papyrus import PapyrusDataset
-from utils.transforms import Compose, ToTensor
+from utils.transforms import DropTarget
 
 
 def split_region(width, height, size):
@@ -18,9 +18,9 @@ class PapyrusValDataset(PapyrusDataset):
 
     def get_transforms(self, is_training):
         if is_training:
-            raise Exception('Test dataset should not be called in training mode')
+            raise Exception('Val dataset should not be called in training mode')
         else:
-            return Compose([])
+            return DropTarget()
 
     def split_image(self, images):
         ids = []
