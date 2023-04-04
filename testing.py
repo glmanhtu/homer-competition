@@ -17,7 +17,7 @@ from utils.debug_utils import visualise_boxes
 
 cpu_device = torch.device("cpu")
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 
 
 class Predictor:
