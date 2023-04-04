@@ -20,7 +20,7 @@ class PapyrusValDataset(PapyrusDataset):
         if is_training:
             raise Exception('Test dataset should not be called in training mode')
         else:
-            return Compose([ToTensor()])
+            return Compose([])
 
     def split_image(self, images):
         ids = []
