@@ -3,6 +3,7 @@ import os.path
 
 import matplotlib
 import torch
+import tqdm
 
 from dataset.papyrus import letter_mapping
 from dataset.papyrus_test import PapyrusTestDataset
@@ -16,7 +17,7 @@ from utils.debug_utils import visualise_boxes
 
 cpu_device = torch.device("cpu")
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
-matplotlib.use('MacOSX')
+matplotlib.use('TkAgg')
 
 
 class Predictor:
@@ -52,11 +53,11 @@ class Predictor:
 
         annotations = []
         logging_imgs = []
-        for idx, pil_img in enumerate(ds):
+        for idx, pil_img in enumerate(tqdm.tqdm(ds)):
             img_predictions = predictor(pil_img)
             outputs = {k: v.to(cpu_device) for k, v in img_predictions.items()}
 
-            visualise_boxes(pil_img, outputs['boxes'])
+            # visualise_boxes(pil_img, outputs['boxes'])
             if log_imgs and len(outputs['boxes']) > 0:
                 img = wb_utils.bounding_boxes(pil_img, outputs['boxes'].numpy(),
                                               outputs['labels'].type(torch.int64).numpy(),
@@ -83,7 +84,7 @@ if __name__ == "__main__":
     net_predictor = Predictor(train_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
                               device=torch.device('cuda' if train_args.cuda else 'cpu'))
     predictions, _ = net_predictor.predict_all(dataset)
-    with open(os.path.join("template.json")) as f:
+    with open(os.path.join(train_args.dataset, "HomerCompTestingReadCoco-template.json")) as f:
         json_output = json.load(f)
 
     json_output['annotations'] = predictions
