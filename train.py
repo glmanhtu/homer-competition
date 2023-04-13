@@ -126,9 +126,9 @@ class Trainer:
         coco_evaluator.coco_eval['bbox'].summarize = lambda: summarizeCustom(coco_evaluator.coco_eval['bbox'])
 
         if self.args.mode == 'first_twin':
-            val_fn = self.second_twin_validate
-        elif self.args.mode == 'second_twin':
-            val_fn = self.first_twin_validation
+            val_fn = self.first_twin_validate
+        elif self.args.mode == 'second_twin' or self.args.mode == 'kuzushiji':
+            val_fn = self.second_twin_validation
         else:
             raise Exception(f'Train mode {self.args.mode} is not implemented!')
 
@@ -150,7 +150,7 @@ class Trainer:
 
         return val_dict, logging_imgs
 
-    def first_twin_validation(self, val_loader, coco_evaluator, log_predictions=False):
+    def second_twin_validation(self, val_loader, coco_evaluator, log_predictions=False):
 
         to_pil_img = torchvision.transforms.ToPILImage()
         logging_imgs = []
@@ -184,7 +184,7 @@ class Trainer:
                     logging_imgs.append(img)
         return coco_evaluator, logging_imgs
 
-    def second_twin_validate(self, val_loader, coco_evaluator, log_predictions=False):
+    def first_twin_validate(self, val_loader, coco_evaluator, log_predictions=False):
 
         logging_imgs = []
         for i_train_batch, batch in enumerate(val_loader):
