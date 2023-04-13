@@ -6,9 +6,7 @@ import wandb
 
 from dataset.papyrus import letter_mapping
 
-display_ids = {"Box": 1, "Fragment": 2}
 # this is a revese map of the integer class id to the string class label
-class_id_to_label = {int(v): k for k, v in display_ids.items()}
 class_id_to_label_letter = {v: str(k) for k, v in letter_mapping.items()}
 
 
@@ -30,13 +28,18 @@ def resize_image(image, boxes, max_img_size):
     return raw_image, boxes
 
 
-def bounding_boxes(raw_image, v_boxes, v_labels, v_scores, first_twin=False, max_img_size=600):
+def bounding_boxes(raw_image, v_boxes, v_labels, v_scores, mode, max_img_size=600):
     # load raw input photo
     if isinstance(raw_image, torch.Tensor):
         raw_image = torchvision.transforms.ToPILImage()(raw_image)
     raw_image, v_boxes = resize_image(raw_image, v_boxes, max_img_size)
     all_boxes = []
-    label_mapping = class_id_to_label if first_twin else class_id_to_label_letter
+    if mode == 'first_twin':
+        label_mapping = class_id_to_label_letter
+    elif mode == 'second_twin':
+        label_mapping = class_id_to_label_letter
+    elif mode == 'kuzushiji':
+        label_mapping = {i: str(i) for i in range(4787)}
     # plot each bounding box for this image
     for b_i, box in enumerate(v_boxes):
         box_data = {

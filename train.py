@@ -180,7 +180,7 @@ class Trainer:
                 for i in range(len(outputs)):
                     img = wb_utils.bounding_boxes(image, outputs[i]['boxes'].numpy(),
                                                   outputs[i]['labels'].type(torch.int64).numpy(),
-                                                  outputs[i]['scores'].numpy())
+                                                  outputs[i]['scores'].numpy(), self.args.mode)
                     logging_imgs.append(img)
         return coco_evaluator, logging_imgs
 
@@ -199,7 +199,7 @@ class Trainer:
                 for i in range(len(outputs)):
                     img = wb_utils.bounding_boxes(images[i], outputs[i]['boxes'].numpy(),
                                                   outputs[i]['labels'].type(torch.int64).numpy(),
-                                                  outputs[i]['scores'].numpy())
+                                                  outputs[i]['scores'].numpy(), self.args.mode)
                     logging_imgs.append(img)
 
         return coco_evaluator, logging_imgs
