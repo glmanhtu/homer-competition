@@ -27,12 +27,12 @@ class Trainer:
         self.args = args
         self._working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
         os.makedirs(self._working_dir, exist_ok=True)
-        self._model = ModelsFactory.get_model(args, args.mode, self._working_dir, is_train=True, device=device,
-                                              dropout=args.dropout)
 
         dataset_train = dataset_factory.get_dataset(args.dataset, args.mode, is_training=True,
                                                     image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
                                                     ref_box_size=args.ref_box_height, fold=fold, k_fold=k_fold)
+        self._model = ModelsFactory.get_model(args, args.mode, self._working_dir, is_train=True, device=device,
+                                              dropout=args.dropout)
         self.data_loader_train = DataLoader(dataset_train, shuffle=True, num_workers=args.n_threads_train,
                                             collate_fn=misc.collate_fn, persistent_workers=True,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)
