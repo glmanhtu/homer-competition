@@ -96,12 +96,16 @@ class LongRectangleCropOperator(ChainOperator):
             labels.append(predictions['labels'])
             scores.append(predictions['scores'])
 
-        if len(boxes) == 0:
-            return {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
-
         boxes = torch.cat(boxes, dim=0)
         labels = torch.cat(labels, dim=0)
         scores = torch.cat(scores, dim=0)
+
+        if len(boxes) == 0:
+            return {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
+
+        boxes = torch.cat([boxes, boxes], dim=0)
+        labels = torch.cat([labels, labels], dim=0)
+        scores = torch.cat([scores, scores], dim=0)
 
         boxes, labels, scores = avg_merge(boxes, labels, scores, min_voters=1)
 
@@ -219,12 +223,12 @@ class SplitRegionOperator(ChainOperator):
             labels.append(predictions['labels'])
             scores.append(predictions['scores'])
 
-        if len(boxes) == 0:
-            return {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
-
         boxes = torch.cat(boxes, dim=0)
         labels = torch.cat(labels, dim=0)
         scores = torch.cat(scores, dim=0)
+
+        if len(boxes) == 0:
+            return {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
 
         boxes = torch.cat([boxes, boxes], dim=0)
         labels = torch.cat([labels, labels], dim=0)
