@@ -419,9 +419,6 @@ def avg_merge(boxes, labels, scores, iou_threshold=0.5, min_voters=2):
         im_labels.append(label)
         im_scores.append(score)
 
-    if len(im_boxes) == 0:
-        return torch.tensor([]), torch.tensor([]), torch.tensor([])
-
     return torch.stack(im_boxes), torch.stack(im_labels), torch.stack(im_scores)
 
 

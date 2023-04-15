@@ -226,7 +226,11 @@ class SplitRegionOperator(ChainOperator):
         labels = torch.cat(labels, dim=0)
         scores = torch.cat(scores, dim=0)
 
-        boxes, labels, scores = avg_merge(boxes, labels, scores, min_voters=1)
+        boxes = torch.cat([boxes, boxes], dim=0)
+        labels = torch.cat([labels, labels], dim=0)
+        scores = torch.cat([scores, scores], dim=0)
+
+        boxes, labels, scores = avg_merge(boxes, labels, scores, min_voters=2)
         boxes = shift_coordinates(boxes, start_point[0], start_point[1])
         return {'boxes': boxes, 'labels': labels, 'scores': scores}
 
