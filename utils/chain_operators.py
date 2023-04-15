@@ -101,7 +101,7 @@ class LongRectangleCropOperator(ChainOperator):
         scores = torch.cat(scores, dim=0)
 
         if len(boxes) == 0:
-            return {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
+            return {'boxes': torch.zeros((0, 4)), 'labels': torch.zeros((0,)), 'scores': torch.zeros((0,))}
 
         boxes = torch.cat([boxes, boxes], dim=0)
         labels = torch.cat([labels, labels], dim=0)
@@ -228,7 +228,7 @@ class SplitRegionOperator(ChainOperator):
         scores = torch.cat(scores, dim=0)
 
         if len(boxes) == 0:
-            return {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
+            return {'boxes': torch.zeros((0, 4)), 'labels': torch.zeros((0,)), 'scores': torch.zeros((0,))}
 
         boxes = torch.cat([boxes, boxes], dim=0)
         labels = torch.cat([labels, labels], dim=0)
