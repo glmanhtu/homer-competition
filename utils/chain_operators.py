@@ -4,7 +4,8 @@ import torch
 import torchvision.transforms
 from PIL import Image
 
-from utils.transforms import shift_coordinates, merge_prediction
+from utils import misc
+from utils.transforms import shift_coordinates, merge_prediction, avg_merge
 
 
 class ChainOperator:
@@ -86,21 +87,25 @@ class LongRectangleCropOperator(ChainOperator):
         return images, start_points
 
     def backward(self, data, all_start_points):
-        all_predictions = None
+        boxes, labels, scores = [], [], []
         for predictions, start_points in zip(data, all_start_points):
             if predictions is None:
                 continue
             predictions['boxes'] = shift_coordinates(predictions['boxes'], -start_points[0], -start_points[1])
-            if all_predictions is None:
-                all_predictions = predictions
-            else:
-                all_predictions = merge_prediction(all_predictions, predictions, iou_threshold=self.merge_iou_threshold,
-                                                   additional_keys=('labels', 'scores'))
+            boxes.append(predictions['boxes'])
+            labels.append(predictions['labels'])
+            scores.append(predictions['scores'])
 
-        if all_predictions is None:
-            all_predictions = {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
+        if len(boxes) == 0:
+            return {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
 
-        return all_predictions
+        boxes = torch.cat(boxes, dim=0)
+        labels = torch.cat(labels, dim=0)
+        scores = torch.cat(scores, dim=0)
+
+        boxes, labels, scores = avg_merge(boxes, labels, scores, min_voters=1)
+
+        return {'boxes': boxes, 'labels': labels, 'scores': scores}
 
 
 class FinalOperator:
@@ -205,18 +210,25 @@ class SplitRegionOperator(ChainOperator):
 
     def backward(self, data, addition):
         all_start_points, start_point = addition
-
-        all_predictions = None
+        boxes, labels, scores = [], [], []
         for predictions, start_points in zip(data, all_start_points):
+            if predictions is None:
+                continue
             predictions['boxes'] = shift_coordinates(predictions['boxes'], -start_points[0], -start_points[1])
-            if all_predictions is None:
-                all_predictions = predictions
-            else:
-                all_predictions = merge_prediction(all_predictions, predictions, iou_threshold=self.merge_iou_threshold,
-                                                   additional_keys=('labels', 'scores'))
+            boxes.append(predictions['boxes'])
+            labels.append(predictions['labels'])
+            scores.append(predictions['scores'])
 
-        all_predictions['boxes'] = shift_coordinates(all_predictions['boxes'], start_point[0], start_point[1])
-        return all_predictions
+        if len(boxes) == 0:
+            return {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
+
+        boxes = torch.cat(boxes, dim=0)
+        labels = torch.cat(labels, dim=0)
+        scores = torch.cat(scores, dim=0)
+
+        boxes, labels, scores = avg_merge(boxes, labels, scores, min_voters=1)
+        boxes = shift_coordinates(boxes, start_point[0], start_point[1])
+        return {'boxes': boxes, 'labels': labels, 'scores': scores}
 
     def split_region(self, width, height, size):
         n_rows = height / size

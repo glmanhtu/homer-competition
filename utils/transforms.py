@@ -12,6 +12,7 @@ from torchvision.models.detection.transform import GeneralizedRCNNTransform, _re
     resize_keypoints
 from torchvision.transforms import functional as F
 
+from utils import misc
 from utils.exceptions import NoGTBoundingBox
 import albumentations as A
 import cv2
@@ -384,6 +385,41 @@ class CustomiseGeneralizedRCNNTransform(GeneralizedRCNNTransform):
             letter_boxes = resize_boxes(letter_boxes, (h, w), image.shape[-2:])
             target['letter_boxes'] = letter_boxes
         return image, target
+
+
+def avg_merge(boxes, labels, scores, iou_threshold=0.5, min_voters=2):
+    # compute the IoU between the two sets of bounding boxes
+    iou = torchvision.ops.box_iou(boxes, boxes)
+
+    # find the indices of the overlapping bounding boxes
+    overlapping_indices = torch.where(iou > iou_threshold)
+
+    groups = []
+    for indicate_1, indicate_2 in zip(overlapping_indices[0], overlapping_indices[1]):
+        misc.add_items_to_group([indicate_1.item(), indicate_2.item()], groups)
+
+    group_filtered = [x for x in groups if len(x) >= min_voters]
+    im_boxes, im_labels, im_scores = [], [], []
+    for ids in group_filtered:
+        sample_ids = torch.tensor(list(ids))
+        overlapped_boxes = boxes[sample_ids]
+        overlapped_labels = labels[sample_ids]
+        overlapped_scores = scores[sample_ids]
+        label_ids, label_counts = torch.unique(overlapped_labels, return_counts=True)
+
+        label = label_ids[torch.argmax(label_counts)]
+        selected_ids = overlapped_labels == label
+        overlapped_boxes = overlapped_boxes[selected_ids]
+        overlapped_scores = overlapped_scores[selected_ids]
+
+        box = overlapped_boxes.mean(dim=0)
+        score = overlapped_scores.mean()
+
+        im_boxes.append(box)
+        im_labels.append(label)
+        im_scores.append(score)
+
+    return torch.stack(im_boxes), torch.stack(im_labels), torch.stack(im_scores)
 
 
 def merge_prediction(predictions_1, predictions_2, iou_threshold=0.3, additional_keys=()):
