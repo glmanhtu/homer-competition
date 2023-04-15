@@ -1,4 +1,5 @@
 import os
+from collections import OrderedDict
 
 import numpy as np
 import torch
@@ -9,12 +10,24 @@ from utils.misc import map_location
 
 class ModelWrapper:
     def __init__(self, args, mode, working_dir, model, is_train, device):
-        self._model = model.to(device)
         self._mode = mode
         self._args = args
         self._is_train = is_train
         self._save_dir = working_dir
 
+        if os.path.isfile(args.pretrained_model):
+            pretrained = torch.load(args.pretrained_model, map_location='cpu')
+            original_state_dict = model.state_dict()
+            state_dict = []
+            for key, value in pretrained.items():
+                if 'box_predictor' in key:
+                    state_dict.append((key, original_state_dict[key]))
+                else:
+                    state_dict.append((key, value))
+            state_dict = OrderedDict(state_dict)
+            model.load_state_dict(state_dict)
+
+        self._model = model.to(device)
         if self._is_train:
             self._model.train()
         else:
