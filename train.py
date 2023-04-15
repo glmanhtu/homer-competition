@@ -22,7 +22,7 @@ cpu_device = torch.device("cpu")
 
 
 class Trainer:
-    def __init__(self, args, fold=1, k_fold=5):
+    def __init__(self, args, fold=4, k_fold=5):
         device = torch.device('cuda' if args.cuda else 'cpu')
         self.args = args
         self._working_dir = os.path.join(args.checkpoints_dir, args.name, f'fold_{fold}')
