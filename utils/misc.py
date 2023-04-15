@@ -124,3 +124,27 @@ def split_region(width, height, size):
     return n_cols, n_rows
 
 
+def add_items_to_group(items, groups):
+    """
+    Add list of items to groups,
+    If there are no groups that match with the items, create a new group and put those item in this new group
+    If there is only one matching group, add all these items to this group
+    If there is more than one matching group, add all these items to the first group, then move items from
+                other matching groups to this first group
+    """
+    reference_group = {}
+    for g_id, group in enumerate(groups):
+        for fragment_id in items:
+            if fragment_id in group and g_id not in reference_group:
+                reference_group[g_id] = group
+
+    if len(reference_group) > 0:
+        reference_ids = list(reference_group.keys())
+        for fragment_id in items:
+            reference_group[reference_ids[0]].add(fragment_id)
+        for g_id in reference_ids[1:]:
+            for fragment_id in reference_group[g_id]:
+                reference_group[reference_ids[0]].add(fragment_id)
+            del groups[g_id]
+    else:
+        groups.append(set(items))
