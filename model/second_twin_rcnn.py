@@ -23,11 +23,7 @@ class SecondTwinRCNN(nn.Module):
         super().__init__()
         if arch == 'resnet50':
             model = fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size, trainable_backbone_layers=5,
-                                               max_size=img_size, rpn_batch_size_per_image=256,
-                                               box_batch_size_per_image=512,
-                                               box_nms_thresh=0.5, box_score_thresh=0.2,
-                                               box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
-                                               box_positive_fraction=0.4,
+                                               max_size=img_size, box_score_thresh=0.2,
                                                box_detections_per_img=320)
         elif arch == 'resnet101':
             backbone = resnet101(weights=ResNet101_Weights.IMAGENET1K_V1, progress=True)
@@ -46,11 +42,7 @@ class SecondTwinRCNN(nn.Module):
                 rpn_head=rpn_head,
                 box_head=box_head,
                 min_size=img_size,
-                max_size=img_size, rpn_batch_size_per_image=256,
-                box_batch_size_per_image=512,
-                box_nms_thresh=0.5, box_score_thresh=0.2,
-                box_positive_fraction=0.4,
-                box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
+                max_size=img_size, box_score_thresh=0.2,
                 box_detections_per_img=320
             )
         elif arch == 'resnet34':
@@ -70,20 +62,13 @@ class SecondTwinRCNN(nn.Module):
                 rpn_head=rpn_head,
                 box_head=box_head,
                 min_size=img_size,
-                max_size=img_size, rpn_batch_size_per_image=256,
-                box_batch_size_per_image=512,
-                box_nms_thresh=0.5, box_score_thresh=0.2,
-                box_positive_fraction=0.4,
-                box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
+                max_size=img_size, box_score_thresh=0.2,
                 box_detections_per_img=320
             )
         elif arch == 'mobinet':
             model = fasterrcnn_mobilenet_v3_large_fpn(pretrained=True, min_size=img_size, trainable_backbone_layers=6,
-                                                      max_size=img_size, rpn_batch_size_per_image=256,
-                                                      box_batch_size_per_image=512,
-                                                      box_nms_thresh=0.5, box_score_thresh=0.2,
-                                                      box_positive_fraction=0.4,
-                                                      box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
+                                                      max_size=img_size,
+                                                      box_score_thresh=0.2,
                                                       box_detections_per_img=320)
         else:
             raise Exception(f'Arch {arch} is not implemented')
