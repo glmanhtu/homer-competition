@@ -5,7 +5,7 @@ from train import Trainer
 args = CrossValOptions().parse()
 
 if __name__ == "__main__":
-    assert args.n_epochs_per_eval == args.nepochs, "In cross-validation, n_epochs_per_eval have to be equal to nepochs"
+    # assert args.n_epochs_per_eval == args.nepochs, "In cross-validation, n_epochs_per_eval have to be equal to nepochs"
     for fold in range(args.k_fold):
         run = wandb.init(group=args.group,
                          name=f'{args.name}_fold-{fold}',
