@@ -26,7 +26,7 @@ class SecondTwinRCNN(nn.Module):
                                                max_size=img_size, rpn_batch_size_per_image=256,
                                                box_batch_size_per_image=512,
                                                box_nms_thresh=0.5, box_score_thresh=0.2,
-                                               box_fg_iou_thresh=0.75, box_bg_iou_thresh=0.5,
+                                               box_fg_iou_thresh=0.65, box_bg_iou_thresh=0.5,
                                                box_positive_fraction=0.4,
                                                box_detections_per_img=320)
         elif arch == 'resnet101':
