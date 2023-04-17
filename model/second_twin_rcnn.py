@@ -29,6 +29,14 @@ class SecondTwinRCNN(nn.Module):
                                                box_fg_iou_thresh=0.65, box_bg_iou_thresh=0.5,
                                                box_positive_fraction=0.4,
                                                box_detections_per_img=320)
+            anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
+            aspect_ratios = ((0.5, 1.0, 2.0, 4.0),) * len(anchor_sizes)
+            rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
+            rpn_head = RPNHead(model.backbone.out_channels, rpn_anchor_generator.num_anchors_per_location()[0],
+                               conv_depth=2)
+            model.rpn.anchor_generator = rpn_anchor_generator
+            model.rpn.head = rpn_head
+
         elif arch == 'resnet101':
             backbone = resnet101(weights=ResNet101_Weights.IMAGENET1K_V1, progress=True)
             backbone = _resnet_fpn_extractor(backbone, 5, norm_layer=nn.BatchNorm2d)
