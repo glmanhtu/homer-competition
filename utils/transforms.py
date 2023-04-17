@@ -126,9 +126,10 @@ class RandomVerticalFlip(torchvision.transforms.RandomVerticalFlip):
 
 class ImageRescale(nn.Module):
 
-    def __init__(self, ref_box_height=32):
+    def __init__(self, ref_box_height=32, with_randomness=False):
         super().__init__()
         self.ref_box_height = ref_box_height
+        self.with_randomness = with_randomness
 
     def forward(self, image, target):
         boxes = target['boxes']
@@ -136,6 +137,9 @@ class ImageRescale(nn.Module):
             raise NoGTBoundingBox()
         box_height = (boxes[:, 3] - boxes[:, 1]).mean()
         scale = self.ref_box_height / box_height
+        if self.with_randomness:
+            rand_val = random.randint(800, 1200) / 1000.
+            scale *= rand_val
         return resize_sample(image, target, scale)
 
 
