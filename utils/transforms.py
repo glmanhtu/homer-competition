@@ -60,7 +60,7 @@ def shift_coordinates(coordinates, offset_x, offset_y):
     return coordinates
 
 
-def validate_boxes(boxes, labels, width, height, min_w=2, min_h=2, drop_if_missing=False, p_drop=0.25):
+def validate_boxes(boxes, labels, width, height, min_w=2, min_h=2, drop_if_missing=False, p_drop=0.45):
     invalid_boxes = torch.logical_or(boxes[:, 0] > width, boxes[:, 2] < 0)
     invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] > height)
     invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] < 0)
@@ -256,10 +256,11 @@ class RandomCropImage(nn.Module):
 
 
 class PaddingImage(nn.Module):
-    def __init__(self, padding_size=10, color=(255, 255, 255)):
+    def __init__(self, padding_size=10, color=(255, 255, 255), with_randomness=False):
         super().__init__()
         self.padding_size = padding_size
         self.color = color
+        self.with_randomness = with_randomness
 
     def forward(self, image, target):
         right = self.padding_size
@@ -274,9 +275,14 @@ class PaddingImage(nn.Module):
 
         result = Image.new(image.mode, (new_width, new_height), self.color)
 
-        result.paste(image, (left, top))
+        x, y = left, top
+        if self.with_randomness:
+            x = random.randint(0, left * 2)
+            y = random.randint(0, top * 2)
 
-        target['boxes'] = shift_coordinates(target['boxes'], -left, -top)
+        result.paste(image, (x, y))
+
+        target['boxes'] = shift_coordinates(target['boxes'], -x, -y)
 
         return result, target
 

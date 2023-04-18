@@ -16,7 +16,7 @@ class_id_to_label_letter = {v: str(k) for k, v in letter_mapping.items()}
 args = TrainOptions(save_conf=False).parse()
 ref_box_height = 48
 
-dataset = PapyrusP2Dataset(args.dataset, is_training=True, image_size=800, ref_box_size=ref_box_height)
+dataset = PapyrusP2Dataset(args.dataset, is_training=True, image_size=400, ref_box_size=ref_box_height)
 
 colour_map = ["#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
               "#C895C5", "#320033", "#FF6832", "#66E1D3", "#CFCDAC", "#D0AC94", "#7ED379", "#012C58"]

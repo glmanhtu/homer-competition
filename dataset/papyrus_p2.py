@@ -23,7 +23,6 @@ class PapyrusP2Dataset(PapyrusDataset):
         if is_training:
             return Compose([
                 ImageRescale(ref_box_height=self.ref_box_size, with_randomness=True),
-                # PaddingImage(padding_size=100),
                 # AlbumentationWrapper([
                 #     A.Perspective(scale=(0.05, 0.1), keep_size=True, pad_mode=0, pad_val=255,
                 #                   mask_pad_val=0, fit_output=False, interpolation=1, always_apply=False, p=0.5),
@@ -31,6 +30,7 @@ class PapyrusP2Dataset(PapyrusDataset):
                 #     #        rotate_method='largest_box', crop_border=False, always_apply=False, p=0.5)
                 # ]),
                 CropAndPad(image_size=self.image_size, with_randomness=True),
+                PaddingImage(padding_size=int(self.image_size * 0.15), with_randomness=True),
                 ImageTransformCompose([
                     # torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([
