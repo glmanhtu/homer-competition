@@ -22,16 +22,17 @@ class PapyrusP2Dataset(PapyrusDataset):
     def get_transforms(self, is_training):
         if is_training:
             return Compose([
-                ImageRescale(ref_box_height=self.ref_box_size),
+                ImageRescale(ref_box_height=self.ref_box_size, with_randomness=True),
                 # PaddingImage(padding_size=100),
                 # AlbumentationWrapper([
                 #     A.Perspective(scale=(0.05, 0.1), keep_size=True, pad_mode=0, pad_val=255,
                 #                   mask_pad_val=0, fit_output=False, interpolation=1, always_apply=False, p=0.5),
-                #     A.Rotate(limit=10, interpolation=1, border_mode=4, value=255, mask_value=None,
-                #            rotate_method='largest_box', crop_border=False, always_apply=False, p=0.5)
+                #     # A.Rotate(limit=10, interpolation=1, border_mode=4, value=255, mask_value=None,
+                #     #        rotate_method='largest_box', crop_border=False, always_apply=False, p=0.5)
                 # ]),
                 CropAndPad(image_size=self.image_size, with_randomness=True),
                 ImageTransformCompose([
+                    # torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([
                         torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
                     ], p=0.5)
@@ -40,7 +41,6 @@ class PapyrusP2Dataset(PapyrusDataset):
             ])
         else:
             return Compose([
-                LongRectangleCrop(),
                 ToTensor()
             ])
 
@@ -54,12 +54,15 @@ class PapyrusP2Dataset(PapyrusDataset):
         y = int(row * gap_h)
         region_box = torch.tensor([x, y, x + self.image_size, y + self.image_size])
         region_boxes = misc.filter_boxes(region_box, boxes)
-        return len(region_boxes) > 0
+        return len(region_boxes) > 10
 
     def split_image(self, images):
         if not self.is_training:
-            # In evaluation mode, we use only split image method on p1
-            return super().split_image(images)
+            ids = []
+            for i, image in enumerate(self.data['images']):
+                if os.path.basename(image['file_name']) in images:
+                    ids.append((i, 0))
+            return ids, []
         ids = []
         no_box_ids = []
         for i, image in enumerate(self.data['images']):
@@ -77,5 +80,5 @@ class PapyrusP2Dataset(PapyrusDataset):
                             no_box_ids.append((i, [n_cols, n_rows, col, row]))
                         else:
                             ids.append((i, [n_cols, n_rows, col, row]))
-        no_box_ids = list(chunks(no_box_ids, int(0.02 * len(ids))))
+        no_box_ids = list(chunks(no_box_ids, int(0.05 * len(ids))))
         return ids, no_box_ids

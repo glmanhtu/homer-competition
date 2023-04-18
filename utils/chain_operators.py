@@ -86,21 +86,11 @@ class LongRectangleCropOperator(ChainOperator):
         return images, start_points
 
     def backward(self, data, all_start_points):
-        all_predictions = None
+        box_heights = []
         for predictions, start_points in zip(data, all_start_points):
-            if predictions is None:
-                continue
-            predictions['boxes'] = shift_coordinates(predictions['boxes'], -start_points[0], -start_points[1])
-            if all_predictions is None:
-                all_predictions = predictions
-            else:
-                all_predictions = merge_prediction(all_predictions, predictions, iou_threshold=self.merge_iou_threshold,
-                                                   additional_keys=('labels', 'scores'))
+            box_heights.append(predictions['box_height'])
 
-        if all_predictions is None:
-            all_predictions = {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
-
-        return all_predictions
+        return sum(box_heights) / len(box_heights)
 
 
 class FinalOperator:
@@ -237,6 +227,7 @@ class ImgRescaleOperator(ChainOperator):
         box_height = prediction['box_height']
         scale = self.ref_box_height / box_height.cpu().item()
         new_img = image.resize((int(image.width * scale), int(image.height * scale)))
+        print(f'Scale: {scale} - Box height: {box_height}, original: {image.width}x{image.height}, after: {new_img.width}x{new_img.height}')
         out_scale = new_img.width / image.width, new_img.height / image.height
         return new_img, out_scale
 

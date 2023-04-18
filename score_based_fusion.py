@@ -3,8 +3,12 @@ import json
 import os.path
 
 import torch
+from PIL import Image
 
+from utils.debug_utils import visualise_boxes
 from utils.transforms import merge_prediction
+import matplotlib
+matplotlib.use('TkAgg')
 
 
 parser = argparse.ArgumentParser()
@@ -55,9 +59,9 @@ for image in preds:
 
         current_pred = merge_prediction(current_pred, preds[image][f_id], 0.5, additional_keys=('labels', 'scores'))
 
-    # with Image.open(image_map[image]) as f:
-    #     im = f.convert('RGB')
-    # visualise_boxes(im, current_pred['boxes'])
+    with Image.open(image_map[image]) as f:
+        im = f.convert('RGB')
+    visualise_boxes(im, current_pred['boxes'])
 
     for box, label, score in zip(current_pred['boxes'], current_pred['labels'], current_pred['scores']):
         box_np = box.numpy().astype(float)

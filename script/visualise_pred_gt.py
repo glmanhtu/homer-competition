@@ -1,21 +1,23 @@
 import json
 import os.path
 
+import matplotlib
 import torch
 import tqdm
 
-from dataset.papyrus import letter_mapping
-from dataset.papyrus_test import PapyrusTestDataset
+from dataset.papyrus import letter_mapping, PapyrusDataset
 from model.model_factory import ModelsFactory
-from options.test_options import TestOptions
+from options.cross_val_options import CrossValOptions
 from utils import wb_utils
 from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperator, ResizingImageOperator, \
     BoxHeightPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, ImgRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator
+from utils.debug_utils import visualise_boxes, visualise_pred_gt_boxes
+from utils.transforms import Compose
 
 cpu_device = torch.device("cpu")
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
-# matplotlib.use('TkAgg')
+matplotlib.use('TkAgg')
 
 
 class Predictor:
@@ -51,44 +53,46 @@ class Predictor:
 
         annotations = []
         logging_imgs = []
-        for idx, pil_img in enumerate(tqdm.tqdm(ds)):
+        for idx, (pil_img, target) in enumerate(tqdm.tqdm(ds)):
+
             box_height = predictor(pil_img)
             img_predictions = letter_predictor((pil_img, {'box_height': box_height}))
-
             outputs = {k: v.to(cpu_device) for k, v in img_predictions.items()}
 
-            # visualise_boxes(pil_img, outputs['boxes'])
-            if log_imgs and len(outputs['boxes']) > 0:
-                img = wb_utils.bounding_boxes(pil_img, outputs['boxes'].numpy(),
-                                              outputs['labels'].type(torch.int64).numpy(),
-                                              outputs['scores'].numpy())
-                logging_imgs.append(img)
-
-            for box, label, score in zip(outputs['boxes'], outputs['labels'], outputs['scores']):
-                box_np = box.numpy().astype(float)
-                annotation = {
-                    'image_id': ds.get_bln_id(idx),
-                    'category_id': idx_to_letter[label.item()],
-                    'bbox': [box_np[0], box_np[1], box_np[2] - box_np[0], box_np[3] - box_np[1]],
-                    'score': float(score.item())
-                }
-                annotations.append(annotation)
+            visualise_pred_gt_boxes(pil_img, target['boxes'], outputs['boxes'])
+            # if log_imgs and len(outputs['boxes']) > 0:
+            #     img = wb_utils.bounding_boxes(pil_img, outputs['boxes'].numpy(),
+            #                                   outputs['labels'].type(torch.int64).numpy(),
+            #                                   outputs['scores'].numpy())
+            #     logging_imgs.append(img)
+            #
+            # for box, label, score in zip(outputs['boxes'], outputs['labels'], outputs['scores']):
+            #     box_np = box.numpy().astype(float)
+            #     annotation = {
+            #         'image_id': ds.get_bln_id(idx),
+            #         'category_id': idx_to_letter[label.item()],
+            #         'bbox': [box_np[0], box_np[1], box_np[2] - box_np[0], box_np[3] - box_np[1]],
+            #         'score': float(score.item())
+            #     }
+            #     annotations.append(annotation)
 
         return annotations, logging_imgs
 
 
 if __name__ == "__main__":
-    test_args = TestOptions().parse()
-    working_dir = os.path.join(test_args.checkpoints_dir, test_args.name)
-    os.makedirs(test_args.prediction_name, exist_ok=True)
-    dataset = PapyrusTestDataset(test_args.dataset)
-    net_predictor = Predictor(test_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
-                              device=torch.device('cuda' if test_args.cuda else 'cpu'))
-    predictions, _ = net_predictor.predict_all(dataset)
-    with open(os.path.join(test_args.dataset, "HomerCompTestingReadCoco-template.json")) as f:
-        json_output = json.load(f)
+    test_args = CrossValOptions(save_conf=False).parse()
+    for fold in range(test_args.k_fold):
+        working_dir = os.path.join(test_args.checkpoints_dir, test_args.name, f'fold_{fold}')
+        transforms = Compose([])
+        dataset = PapyrusDataset(test_args.dataset, is_training=False, image_size=None, transforms=transforms,
+                                 fold=fold, k_fold=test_args.k_fold)
+        net_predictor = Predictor(test_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
+                                  device=torch.device('cuda' if test_args.cuda else 'cpu'))
+        predictions, _ = net_predictor.predict_all(dataset)
+        with open("template.json") as f:
+            json_output = json.load(f)
 
-    json_output['annotations'] = predictions
-    with open(os.path.join(test_args.prediction_name, "predictions.json"), "w") as outfile:
-        json.dump(json_output, outfile, indent=4)
+        json_output['annotations'] = predictions
+        with open("predictions.json", "w") as outfile:
+            json.dump(json_output, outfile, indent=4)
 

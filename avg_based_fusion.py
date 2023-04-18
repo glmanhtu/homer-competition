@@ -4,8 +4,13 @@ import os.path
 
 import torch
 import torchvision
+from PIL import Image
+
+import matplotlib
+matplotlib.use('TkAgg')
 
 from utils import misc
+from utils.debug_utils import visualise_boxes
 
 
 def avg_fusion(prediction_files, dataset_dir):

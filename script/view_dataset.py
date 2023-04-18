@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt, patches
 
 from options.train_options import TrainOptions
 
-matplotlib.use('MacOSX')
+matplotlib.use('TkAgg')
 from dataset.papyrus import PapyrusDataset
 
 args = TrainOptions(save_conf=False).parse()
