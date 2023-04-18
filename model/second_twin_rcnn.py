@@ -28,7 +28,7 @@ class SecondTwinRCNN(nn.Module):
                                                box_nms_thresh=0.5, box_score_thresh=0.2,
                                                box_fg_iou_thresh=0.65, box_bg_iou_thresh=0.5,
                                                box_positive_fraction=0.3,
-                                               box_detections_per_img=320)
+                                               box_detections_per_img=1000)
         elif arch == 'resnet101':
             backbone = resnet101(weights=ResNet101_Weights.IMAGENET1K_V1, progress=True)
             backbone = _resnet_fpn_extractor(backbone, 5, norm_layer=nn.BatchNorm2d)
