@@ -22,7 +22,7 @@ class PapyrusP2Dataset(PapyrusDataset):
     def get_transforms(self, is_training):
         if is_training:
             return Compose([
-                ImageRescale(ref_box_height=self.ref_box_size, with_randomness=True),
+                ImageRescale(ref_box_height=self.ref_box_size),
                 # PaddingImage(padding_size=100),
                 # AlbumentationWrapper([
                 #     A.Perspective(scale=(0.05, 0.1), keep_size=True, pad_mode=0, pad_val=255,

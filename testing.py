@@ -1,19 +1,17 @@
 import json
 import os.path
 
-import matplotlib
 import torch
 import tqdm
 
 from dataset.papyrus import letter_mapping
 from dataset.papyrus_test import PapyrusTestDataset
 from model.model_factory import ModelsFactory
-from options.train_options import TrainOptions
+from options.test_options import TestOptions
 from utils import wb_utils
 from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperator, ResizingImageOperator, \
     BoxHeightPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, ImgRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator
-from utils.debug_utils import visualise_boxes
 
 cpu_device = torch.device("cpu")
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
@@ -78,16 +76,17 @@ class Predictor:
 
 
 if __name__ == "__main__":
-    train_args = TrainOptions().parse()
-    working_dir = os.path.join(train_args.checkpoints_dir, train_args.name)
-    dataset = PapyrusTestDataset(train_args.dataset)
-    net_predictor = Predictor(train_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
-                              device=torch.device('cuda' if train_args.cuda else 'cpu'))
+    test_args = TestOptions().parse()
+    working_dir = os.path.join(test_args.checkpoints_dir, test_args.name)
+    os.makedirs(test_args.prediction_name, exist_ok=True)
+    dataset = PapyrusTestDataset(test_args.dataset)
+    net_predictor = Predictor(test_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
+                              device=torch.device('cuda' if test_args.cuda else 'cpu'))
     predictions, _ = net_predictor.predict_all(dataset)
-    with open(os.path.join(train_args.dataset, "HomerCompTestingReadCoco-template.json")) as f:
+    with open(os.path.join(test_args.dataset, "HomerCompTestingReadCoco-template.json")) as f:
         json_output = json.load(f)
 
     json_output['annotations'] = predictions
-    with open("predictions.json", "w") as outfile:
+    with open(os.path.join(test_args.prediction_name, "predictions.json"), "w") as outfile:
         json.dump(json_output, outfile, indent=4)
 
