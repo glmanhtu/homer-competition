@@ -140,3 +140,4 @@ checkpoints
 wandb
 *.triplet
 predictions.json
+predictions

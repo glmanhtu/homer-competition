@@ -10,7 +10,7 @@ class Optimizer:
     def __init__(self):
         pass
     
-    def get(self, model: nn.Module, optimizer: str, lr: float, wd: float = 0., momentum: float = 0.5,
+    def get(self, model: nn.Module, optimizer: str, lr: float, wd: float = 0., momentum: float = 0.9,
             betas: Tuple[float, float] = (0.9, 0.999)):
 
         if optimizer.lower() == 'sgd':

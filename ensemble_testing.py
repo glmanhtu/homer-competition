@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     annotations = avg_fusion(pred_files, test_args.dataset)
 
-    with open(os.path.join(test_args.dataset_dir, "HomerCompTestingReadCoco-template.json")) as f:
+    with open(os.path.join(test_args.dataset, "HomerCompTestingReadCoco-template.json")) as f:
         json_output = json.load(f)
 
     json_output['annotations'] = annotations

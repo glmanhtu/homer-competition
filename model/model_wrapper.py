@@ -16,11 +16,10 @@ class ModelWrapper:
         self._save_dir = working_dir
 
         if self._is_train:
+            self._init_train_vars()
             self._model.train()
         else:
             self._model.eval()
-
-        self._init_train_vars()
         self._device = device
 
     @property

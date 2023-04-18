@@ -6,7 +6,7 @@ class TestOptions(BaseOptions):
         return True
 
     def __init__(self):
-        super().__init__()
+        super().__init__(save_conf=False)
 
     def initialize(self):
         BaseOptions.initialize(self)
