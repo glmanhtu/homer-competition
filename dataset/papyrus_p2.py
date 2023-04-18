@@ -30,7 +30,7 @@ class PapyrusP2Dataset(PapyrusDataset):
                 #     #        rotate_method='largest_box', crop_border=False, always_apply=False, p=0.5)
                 # ]),
                 CropAndPad(image_size=self.image_size, with_randomness=True),
-                PaddingImage(padding_size=int(self.image_size * 0.15), with_randomness=True),
+                # PaddingImage(padding_size=int(self.image_size * 0.15), with_randomness=True),
                 ImageTransformCompose([
                     # torchvision.transforms.RandomGrayscale(p=0.3),
                     torchvision.transforms.RandomApply([

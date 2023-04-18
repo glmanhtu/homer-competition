@@ -60,7 +60,7 @@ def shift_coordinates(coordinates, offset_x, offset_y):
     return coordinates
 
 
-def validate_boxes(boxes, labels, width, height, min_w=2, min_h=2, drop_if_missing=False, p_drop=0.45):
+def validate_boxes(boxes, labels, width, height, min_w=2, min_h=2, drop_if_missing=False, p_drop=0.25):
     invalid_boxes = torch.logical_or(boxes[:, 0] > width, boxes[:, 2] < 0)
     invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 1] > height)
     invalid_boxes = torch.logical_or(invalid_boxes, boxes[:, 3] < 0)
