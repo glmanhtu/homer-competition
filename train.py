@@ -211,6 +211,7 @@ if __name__ == "__main__":
                name=train_args.name,
                project=train_args.wb_project,
                entity=train_args.wb_entity,
+               settings=wandb.Settings(_disable_stats=True),
                resume=train_args.resume,
                config=train_args,
                mode=train_args.wb_mode)
