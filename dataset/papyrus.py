@@ -45,7 +45,7 @@ letter_mapping = {
 
 class PapyrusDataset(Dataset):
 
-    def __init__(self, dataset_path: str, is_training, image_size, transforms=None, fold=1, k_fold=5):
+    def __init__(self, dataset_path: str, is_training, image_size, transforms=None, fold=1, k_fold=5, cache_flag=True):
         self.image_size = image_size
         self.dataset_path = dataset_path
         self.is_training = is_training
@@ -85,6 +85,8 @@ class PapyrusDataset(Dataset):
             self.labels[key] = torch.as_tensor(labels[key], dtype=torch.int64)
 
         self.imgs, self.no_boxes_imgs = self.split_image(images)
+        self.cache_imgs = {}
+        self.cache_flag = cache_flag
 
     def get_bln_id(self, idx):
         image_path, part = self.imgs[idx]
@@ -162,8 +164,11 @@ class PapyrusDataset(Dataset):
         }
         src_folder = os.path.join(self.dataset_path, "images", "homer2")
         fname = os.path.join(src_folder, image_folder, image_file)
-        with Image.open(fname) as f:
-            img = f.convert('RGB')
+        if self.cache_flag and fname not in self.cache_imgs:
+            with Image.open(fname) as f:
+                img = f.convert('RGB')
+        else:
+            img = self.cache_imgs[fname]
         try:
             return self.transforms(img, target)
         except NoGTBoundingBox:
