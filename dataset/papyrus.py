@@ -45,7 +45,7 @@ letter_mapping = {
 
 class PapyrusDataset(Dataset):
 
-    def __init__(self, dataset_path: str, is_training, image_size, transforms=None, fold=1, k_fold=5):
+    def __init__(self, dataset_path: str, is_training, image_size, transforms=None, fold=1, k_fold=5, all_data=False):
         self.image_size = image_size
         self.dataset_path = dataset_path
         self.is_training = is_training
@@ -55,11 +55,12 @@ class PapyrusDataset(Dataset):
         images.extend(glob.glob(os.path.join(dataset_path, '**', '*.png'), recursive=True))
         images = sorted([os.path.basename(x) for x in images])
         folds = list(misc.chunks(images, k_fold))
-        if is_training:
-            del folds[fold]
-            images = misc.flatten(folds)
-        else:
-            images = folds[fold]
+        if not all_data:
+            if is_training:
+                del folds[fold]
+                images = misc.flatten(folds)
+            else:
+                images = folds[fold]
 
         with open(os.path.join(dataset_path, "HomerCompTrainingReadCoco.json")) as f:
             self.data = json.load(f)

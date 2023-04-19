@@ -32,7 +32,8 @@ class Trainer:
 
         dataset_train = dataset_factory.get_dataset(args.dataset, args.mode, is_training=True,
                                                     image_size_p1=args.image_size, image_size_p2=args.p2_image_size,
-                                                    ref_box_size=args.ref_box_height, fold=fold, k_fold=k_fold)
+                                                    ref_box_size=args.ref_box_height, fold=fold,
+                                                    k_fold=k_fold, all_data=args.all_data)
         self.data_loader_train = DataLoader(dataset_train, shuffle=True, num_workers=args.n_threads_train,
                                             collate_fn=misc.collate_fn, persistent_workers=True,
                                             batch_size=args.batch_size, drop_last=True, pin_memory=True)

@@ -19,6 +19,8 @@ class BaseOptions:
         self._parser.add_argument('--p2_image_size', type=int, default=800, help='Input image size')
         self._parser.add_argument('--ref_box_height', type=int, default=32, help='Reference letter box height')
         self._parser.add_argument('--cuda', action='store_true', help="Whether to use GPU")
+        self._parser.add_argument('--all_data', action='store_true', help="Whether to train with all data, can be "
+                                                                          "useful to train final model for testing")
         self._parser.add_argument('--p1_arch', type=str, default='mobinet')
         self._parser.add_argument('--p2_arch', type=str, default='resnet50')
         self._parser.add_argument('--n_threads_train', default=8, type=int, help='# threads for loading data')

@@ -13,8 +13,9 @@ def split_region(width, height, size):
 
 class PapyrusValDataset(PapyrusDataset):
 
-    def __init__(self, dataset_path: str, is_training, fold=1, k_fold=5):
-        super().__init__(dataset_path, is_training, image_size=None, transforms=None, fold=fold, k_fold=k_fold)
+    def __init__(self, dataset_path: str, is_training, fold=1, k_fold=5, all_data=False):
+        super().__init__(dataset_path, is_training, image_size=None, transforms=None, fold=fold, k_fold=k_fold,
+                         all_data=all_data)
 
     def get_transforms(self, is_training):
         if is_training:
