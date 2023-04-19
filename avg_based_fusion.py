@@ -12,6 +12,7 @@ matplotlib.use('TkAgg')
 from utils import misc
 from utils.debug_utils import visualise_boxes
 
+score_threshold = 0.2
 
 def avg_fusion(prediction_files, dataset_dir):
     all_predictions = {}
@@ -35,6 +36,8 @@ def avg_fusion(prediction_files, dataset_dir):
         for f_id, annotations in all_predictions[image].items():
             preds[image].setdefault(f_id, {})
             for annotation in annotations:
+                if annotation['score'] < score_threshold:
+                    continue
                 box = annotation['bbox']
                 box[2] = box[0] + box[2]
                 box[3] = box[1] + box[3]
@@ -48,7 +51,7 @@ def avg_fusion(prediction_files, dataset_dir):
 
     output_annotations = []
     iou_threshold = 0.5
-    min_voters = 2
+    min_voters = 1
 
     for image in preds:
         boxes_1 = preds[image]['boxes']
