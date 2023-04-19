@@ -1,10 +1,12 @@
+import itertools
+
 import math
 
 import torch
 import torchvision.transforms
 from PIL import Image
 
-from utils.misc import chunks
+from utils.misc import chunks, split_sequence
 from utils.transforms import shift_coordinates, merge_prediction
 
 
@@ -46,7 +48,7 @@ class BatchingOperator:
 
     def __call__(self, data):
         results = []
-        batches = list(chunks(data, len(data) // self.batch_size))
+        batches = list(split_sequence(data, self.batch_size))
         for batch in batches:
             results += self.next_operator(batch)
         return results
