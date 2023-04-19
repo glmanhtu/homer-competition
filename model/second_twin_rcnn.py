@@ -26,7 +26,7 @@ class SecondTwinRCNN(nn.Module):
                                                max_size=img_size, rpn_batch_size_per_image=256,
                                                box_batch_size_per_image=512,
                                                box_nms_thresh=0.5, box_score_thresh=0.2,
-                                               box_fg_iou_thresh=0.65, box_bg_iou_thresh=0.5,
+                                               box_fg_iou_thresh=0.6, box_bg_iou_thresh=0.3,
                                                box_positive_fraction=0.3,
                                                box_detections_per_img=1000)
         elif arch == 'resnet101':
@@ -95,12 +95,9 @@ class SecondTwinRCNN(nn.Module):
         # )
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         all_classes = n_classes + 1  # +1 class for background
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, all_classes)
-        model.roi_heads.box_predictor.cls_score = nn.Sequential(
-            nn.Linear(in_features, in_features // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(in_features // 2, all_classes)
+        model.roi_heads.box_predictor = nn.Sequential(
+            nn.Dropout(p=dropout),
+            FastRCNNPredictor(in_features, all_classes)
         )
         # model.roi_heads.fg_bg_sampler = BalancedPositiveNegativeSampler(
         #     model.roi_heads.fg_bg_sampler.batch_size_per_image,
