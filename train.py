@@ -14,7 +14,7 @@ from model.model_factory import ModelsFactory
 from options.train_options import TrainOptions
 from utils import misc, wb_utils
 from utils.chain_operators import SplittingOperator, ImgRescaleOperator, \
-    SplitRegionOperator, LetterDetectionOperator, FinalOperator
+    SplitRegionOperator, LetterDetectionOperator, FinalOperator, BatchingOperator
 from utils.coco_summary import summarizeCustom
 from utils.misc import EarlyStop, display_terminal, display_terminal_eval, LossLoging
 
@@ -159,7 +159,7 @@ class Trainer:
 
         # Operators for localising letters inside each papyrus regions
         predictor = LetterDetectionOperator(FinalOperator(), self._model)
-        predictor = SplittingOperator(predictor)
+        predictor = BatchingOperator(predictor, self.args.batch_size)
         predictor = SplitRegionOperator(predictor, self.args.p2_image_size, self.args.merge_iou_threshold)
         predictor = ImgRescaleOperator(predictor, self.args.ref_box_height)
 

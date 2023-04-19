@@ -4,6 +4,7 @@ import torch
 import torchvision.transforms
 from PIL import Image
 
+from utils.misc import chunks
 from utils.transforms import shift_coordinates, merge_prediction
 
 
@@ -34,6 +35,22 @@ class SplittingOperator:
         for item in data:
             results.append(self.next_operator(item))
         return results
+
+
+class BatchingOperator:
+
+    def __init__(self, next_operator, batch_size):
+        super().__init__()
+        self.next_operator = next_operator
+        self.batch_size = batch_size
+
+    def __call__(self, data):
+        results = []
+        batches = list(chunks(data, len(data) // self.batch_size))
+        for batch in batches:
+            results += self.next_operator(batch)
+        return results
+
 
 
 class LongRectangleCropOperator(ChainOperator):
@@ -151,10 +168,10 @@ class LetterDetectionOperator(ChainOperator):
         self.to_tensor = torchvision.transforms.ToTensor()
         # self.img = None
 
-    def forward(self, image):
+    def forward(self, images):
         # self.img = image
-        predictions = self.letter_model.forward([self.to_tensor(image)])
-        return predictions[0], None
+        predictions = self.letter_model.forward([self.to_tensor(x) for x in images])
+        return predictions, None
 
     def backward(self, prediction, addition):
         # visualise_boxes(self.img, prediction['boxes'])
