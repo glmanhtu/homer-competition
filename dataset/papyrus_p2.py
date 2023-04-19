@@ -80,5 +80,5 @@ class PapyrusP2Dataset(PapyrusDataset):
                             no_box_ids.append((i, [n_cols, n_rows, col, row]))
                         else:
                             ids.append((i, [n_cols, n_rows, col, row]))
-        no_box_ids = list(chunks(no_box_ids, int(0.05 * len(ids))))
+        no_box_ids = list(chunks(no_box_ids, int(0.15 * len(ids))))
         return ids, no_box_ids
