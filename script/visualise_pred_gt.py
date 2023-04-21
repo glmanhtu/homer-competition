@@ -11,7 +11,7 @@ from options.cross_val_options import CrossValOptions
 from utils import wb_utils
 from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperator, ResizingImageOperator, \
     BoxHeightPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, ImgRescaleOperator, \
-    SplitRegionOperator, LetterDetectionOperator
+    SplitRegionOperator, LetterDetectionOperator, BatchingOperator
 from utils.debug_utils import visualise_boxes, visualise_pred_gt_boxes
 from utils.transforms import Compose
 
@@ -39,7 +39,7 @@ class Predictor:
 
         # Operators for localising letters inside each papyrus regions
         letter_predictor = LetterDetectionOperator(FinalOperator(), self._letter_model)
-        letter_predictor = SplittingOperator(letter_predictor)
+        letter_predictor = BatchingOperator(letter_predictor, self.args.batch_size)
         letter_predictor = SplitRegionOperator(letter_predictor, self.args.p2_image_size, self.args.merge_iou_threshold)
         letter_predictor = ImgRescaleOperator(letter_predictor, self.args.ref_box_height)
 

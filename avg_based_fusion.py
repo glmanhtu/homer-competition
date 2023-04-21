@@ -12,7 +12,7 @@ matplotlib.use('TkAgg')
 from utils import misc
 from utils.debug_utils import visualise_boxes
 
-score_threshold = 0.2
+score_threshold = 0.05
 
 def avg_fusion(prediction_files, dataset_dir):
     all_predictions = {}
@@ -50,7 +50,7 @@ def avg_fusion(prediction_files, dataset_dir):
         preds[image]['scores'] = torch.tensor(scores)
 
     output_annotations = []
-    iou_threshold = 0.5
+    iou_threshold = 0.7
     min_voters = 1
 
     for image in preds:

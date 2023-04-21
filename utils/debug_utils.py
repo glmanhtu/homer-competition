@@ -44,7 +44,7 @@ def visualise_pred_gt_boxes(image, gt_boxes, pred_boxes):
         ax.add_patch(rect)
 
 
-    c = 'green'
+    c = '#3DF22E'
     for i, bbox in enumerate(pred_boxes):
         x_min, y_min, x_max, y_max = bbox
         rect = patches.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=1, edgecolor=c,
