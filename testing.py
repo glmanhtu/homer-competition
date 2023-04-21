@@ -1,5 +1,6 @@
 import json
 import os.path
+import time
 
 import torch
 import tqdm
@@ -51,9 +52,13 @@ class Predictor:
 
         annotations = []
         logging_imgs = []
+        pred_times = []
+
         for idx, pil_img in enumerate(tqdm.tqdm(ds)):
+            start_time = time.time()
             box_height = predictor(pil_img)
             img_predictions = letter_predictor((pil_img, {'box_height': box_height}))
+            pred_times.append(time.time() - start_time)
 
             outputs = {k: v.to(cpu_device) for k, v in img_predictions.items()}
 
@@ -73,7 +78,8 @@ class Predictor:
                     'score': float(score.item())
                 }
                 annotations.append(annotation)
-
+        avg_time = sum(pred_times) / len(pred_times)
+        print(f'Avg time per image: {avg_time} seconds')
         return annotations, logging_imgs
 
 
