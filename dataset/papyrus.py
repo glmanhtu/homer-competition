@@ -41,6 +41,7 @@ letter_mapping = {
     212: 23,
     225: 24,
 }
+id_to_letter = {v: k for k, v in letter_mapping.items()}
 
 
 class PapyrusDataset(Dataset):
@@ -64,6 +65,7 @@ class PapyrusDataset(Dataset):
         with open(os.path.join(dataset_path, "HomerCompTrainingReadCoco.json")) as f:
             self.data = json.load(f)
 
+        self.category_mapping = {x['id']: x['name'] for x in self.data['categories']}
         boxes = {}
         labels = {}
         for annotation in self.data['annotations']:
@@ -87,6 +89,9 @@ class PapyrusDataset(Dataset):
         self.imgs, self.no_boxes_imgs = self.split_image(images)
         self.cache_imgs = {}
         self.cache_flag = cache_flag
+
+    def pred_to_name(self, label_id):
+        return self.category_mapping[id_to_letter[label_id]]
 
     def get_bln_id(self, idx):
         image_path, part = self.imgs[idx]
@@ -113,7 +118,7 @@ class PapyrusDataset(Dataset):
             ])
         else:
             return Compose([
-                LongRectangleCrop(),
+                # LongRectangleCrop(),
                 FixedImageResize(self.image_size),
                 PaddingImage(padding_size=20),
                 ToTensor()
@@ -123,7 +128,9 @@ class PapyrusDataset(Dataset):
         ids = []
         for i, image in enumerate(self.data['images']):
             if os.path.basename(image['file_name']) in images:
-                if image['height'] / image['width'] >= 1.3 or image['width'] / image['height'] >= 1.3:
+                if not self.is_training:
+                    ids.append((i, 0))
+                elif image['height'] / image['width'] >= 1.3 or image['width'] / image['height'] >= 1.3:
                     # Append part 1 and 2 of the image. See transforms.LongRectangleCrop
                     ids.append((i, 1))
                     ids.append((i, 2))

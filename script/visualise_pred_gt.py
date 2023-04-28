@@ -3,6 +3,7 @@ import os.path
 
 import matplotlib
 import torch
+import torchvision
 import tqdm
 
 from dataset.papyrus import letter_mapping, PapyrusDataset
@@ -59,7 +60,20 @@ class Predictor:
             img_predictions = letter_predictor((pil_img, {'box_height': box_height}))
             outputs = {k: v.to(cpu_device) for k, v in img_predictions.items()}
 
-            visualise_pred_gt_boxes(pil_img, target['boxes'], outputs['boxes'])
+            # compute the IoU between the two sets of bounding boxes
+            iou = torchvision.ops.box_iou(target['boxes'], outputs['boxes'])
+
+            # find the indices of the overlapping bounding boxes
+            overlapping_indices = torch.where(iou > 0.7)
+            target_label_overlapped = target['labels'][overlapping_indices[0]]
+            output_label_overlapped = outputs['labels'][overlapping_indices[1]]
+            mis_matches_indicates = torch.where(target_label_overlapped != output_label_overlapped)
+            mis_matches_output_boxes = outputs['boxes'][overlapping_indices[1]][mis_matches_indicates[0]]
+            mis_matches_output_labels = output_label_overlapped[mis_matches_indicates[0]]
+            mis_matches_target_boxes = target['boxes'][overlapping_indices[0]][mis_matches_indicates[0]]
+            mis_matches_target_labels = target_label_overlapped[mis_matches_indicates[0]]
+            visualise_pred_gt_boxes(pil_img, mis_matches_target_boxes, mis_matches_target_labels,
+                                    mis_matches_output_boxes, mis_matches_output_labels, ds.pred_to_name)
             # if log_imgs and len(outputs['boxes']) > 0:
             #     img = wb_utils.bounding_boxes(pil_img, outputs['boxes'].numpy(),
             #                                   outputs['labels'].type(torch.int64).numpy(),
