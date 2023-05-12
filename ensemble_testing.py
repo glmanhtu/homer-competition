@@ -12,19 +12,23 @@ from testing import Predictor
 if __name__ == '__main__':
     test_args = TestOptions().parse()
     pred_files = []
-    os.makedirs(test_args.prediction_name, exist_ok=True)
+    os.makedirs(test_args.prediction_path, exist_ok=True)
 
-    for fold in tqdm.tqdm(range(test_args.k_fold)):
-        working_dir = os.path.join(test_args.checkpoints_dir, test_args.name, f'fold_{fold}')
+    for ens in tqdm.tqdm(range(test_args.n_ensemble)):
+        working_dir = os.path.join(test_args.checkpoints_dir, test_args.name)
         dataset = PapyrusTestDataset(test_args.dataset)
         net_predictor = Predictor(test_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
                                   device=torch.device('cuda' if test_args.cuda else 'cpu'))
+        net_predictor.load_from_checkpoint(
+            first_twin=os.path.join(test_args.pretrained_model_path, 'first_twin-net.pth'),
+            second_twin=os.path.join(test_args.pretrained_model_path, f'second_twin-net-{ens}.pth')
+        )
         predictions, _ = net_predictor.predict_all(dataset)
         with open(os.path.join(test_args.dataset, "HomerCompTestingReadCoco-template.json")) as f:
             json_output = json.load(f)
 
         json_output['annotations'] = predictions
-        pred_file = os.path.join(test_args.prediction_name, f"predictions_{fold}.json")
+        pred_file = os.path.join(test_args.prediction_path, f"predictions_{ens}.json")
         with open(pred_file, "w") as outfile:
             json.dump(json_output, outfile, indent=4)
         pred_files.append(pred_file)
@@ -35,5 +39,5 @@ if __name__ == '__main__':
         json_output = json.load(f)
 
     json_output['annotations'] = annotations
-    with open(os.path.join(test_args.prediction_name, "predictions.json"), "w") as outfile:
+    with open(os.path.join(test_args.prediction_path, "predictions.json"), "w") as outfile:
         json.dump(json_output, outfile, indent=4)

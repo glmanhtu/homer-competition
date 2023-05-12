@@ -4,6 +4,7 @@ import torch
 import torchvision.transforms
 from PIL import Image
 
+from utils.misc import chunks, split_sequence
 from utils.transforms import shift_coordinates, merge_prediction
 
 
@@ -34,6 +35,22 @@ class SplittingOperator:
         for item in data:
             results.append(self.next_operator(item))
         return results
+
+
+class BatchingOperator:
+
+    def __init__(self, next_operator, batch_size):
+        super().__init__()
+        self.next_operator = next_operator
+        self.batch_size = batch_size
+
+    def __call__(self, data):
+        results = []
+        batches = list(split_sequence(data, self.batch_size))
+        for batch in batches:
+            results += self.next_operator(batch)
+        return results
+
 
 
 class LongRectangleCropOperator(ChainOperator):
@@ -86,21 +103,11 @@ class LongRectangleCropOperator(ChainOperator):
         return images, start_points
 
     def backward(self, data, all_start_points):
-        all_predictions = None
+        box_heights = []
         for predictions, start_points in zip(data, all_start_points):
-            if predictions is None:
-                continue
-            predictions['boxes'] = shift_coordinates(predictions['boxes'], -start_points[0], -start_points[1])
-            if all_predictions is None:
-                all_predictions = predictions
-            else:
-                all_predictions = merge_prediction(all_predictions, predictions, iou_threshold=self.merge_iou_threshold,
-                                                   additional_keys=('labels', 'scores'))
+            box_heights.append(predictions['box_height'])
 
-        if all_predictions is None:
-            all_predictions = {'boxes': torch.tensor([]), 'labels': torch.tensor([]), 'scores': torch.tensor([])}
-
-        return all_predictions
+        return sum(box_heights) / len(box_heights)
 
 
 class FinalOperator:
@@ -161,10 +168,10 @@ class LetterDetectionOperator(ChainOperator):
         self.to_tensor = torchvision.transforms.ToTensor()
         # self.img = None
 
-    def forward(self, image):
+    def forward(self, images):
         # self.img = image
-        predictions = self.letter_model.forward([self.to_tensor(image)])
-        return predictions[0], None
+        predictions = self.letter_model.forward([self.to_tensor(x) for x in images])
+        return predictions, None
 
     def backward(self, prediction, addition):
         # visualise_boxes(self.img, prediction['boxes'])

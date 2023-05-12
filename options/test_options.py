@@ -11,6 +11,6 @@ class TestOptions(BaseOptions):
     def initialize(self):
         BaseOptions.initialize(self)
         self._parser.add_argument('--pretrained_model_path', default = '', type=str,  help='the model to be evaluated')
-        self._parser.add_argument('--prediction_name', required=True, type=str,  help='Path to save the predictions')
-        self._parser.add_argument('--k_fold', type=int, default=5)
+        self._parser.add_argument('--prediction_path', required=True, type=str,  help='Path to save the predictions')
+        self._parser.add_argument('--n_ensemble', type=int, default=10)
 

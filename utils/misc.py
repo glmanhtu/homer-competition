@@ -29,6 +29,11 @@ def chunks(l, n):
         yield l[i::n]
 
 
+def split_sequence(sequence, chunk_size):
+    for i in range(0, len(sequence), chunk_size):
+        yield sequence[i: i + chunk_size]
+
+
 def map_location(cuda):
     if torch.cuda.is_available() and cuda:
         return torch.device('cuda')

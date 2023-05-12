@@ -33,6 +33,7 @@ if __name__ == "__main__":
         pretrained_ltd_dir = os.path.join(args.second_twin_model_dir, f"fold_{fold}")
         net_predictor = Predictor(args, pretrained_rgd_dir, pretrained_ltd_dir,
                                   device=torch.device('cuda' if args.cuda else 'cpu'))
+        net_predictor.load_pretrained()
 
         predictions, logging_ims = net_predictor.predict_all(dataset, log_imgs=True)
         pred_ids = set([x['image_id'] for x in predictions])
