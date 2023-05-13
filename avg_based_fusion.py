@@ -8,6 +8,9 @@ import torchvision
 from utils import misc
 
 score_threshold = 0.05
+iou_threshold = 0.7
+min_voters = 1
+
 
 def avg_fusion(prediction_files, dataset_dir):
     all_predictions = {}
@@ -45,8 +48,6 @@ def avg_fusion(prediction_files, dataset_dir):
         preds[image]['scores'] = torch.tensor(scores)
 
     output_annotations = []
-    iou_threshold = 0.7
-    min_voters = 1
 
     for image in preds:
         boxes_1 = preds[image]['boxes']

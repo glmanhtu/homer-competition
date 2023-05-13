@@ -92,7 +92,7 @@ class Predictor:
 if __name__ == "__main__":
     test_args = TestOptions().parse()
     working_dir = os.path.join(test_args.checkpoints_dir, test_args.name)
-    os.makedirs(test_args.prediction_name, exist_ok=True)
+    os.makedirs(test_args.prediction_path, exist_ok=True)
     dataset = PapyrusTestDataset(test_args.dataset)
     net_predictor = Predictor(test_args, first_twin_model_dir=working_dir, second_twin_model_dir=working_dir,
                               device=torch.device('cuda' if test_args.cuda else 'cpu'))
