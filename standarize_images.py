@@ -31,7 +31,7 @@ if __name__ == "__main__":
     # predictor = BranchingOperator(predictor, letter_predictor)
     predictor = SplittingOperator(predictor)
     predictor = LongRectangleCropOperator(predictor, merge_iou_threshold=test_args.merge_iou_threshold)
-    images = glob.glob(os.path.join(test_args.dataset, '**', '*.png'))
+    images = glob.glob(os.path.join(test_args.dataset, '**', '*.png'), recursive=True)
     for idx, img_path in enumerate(tqdm.tqdm(images)):
         if 'baselines' in img_path:
             continue
