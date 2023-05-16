@@ -4,6 +4,7 @@ import torch
 import torchvision.transforms
 from PIL import Image
 
+from utils.exceptions import NotEnoughBoxes
 from utils.misc import chunks, split_sequence
 from utils.transforms import shift_coordinates, merge_prediction
 
@@ -50,7 +51,6 @@ class BatchingOperator:
         for batch in batches:
             results += self.next_operator(batch)
         return results
-
 
 
 class LongRectangleCropOperator(ChainOperator):
@@ -117,17 +117,21 @@ class FinalOperator:
 
 class BoxHeightPredictionOperator(ChainOperator):
 
-    def __init__(self, next_operator, region_model):
+    def __init__(self, next_operator, region_model, min_boxes_count=1, device=torch.device("cpu")):
         super().__init__(next_operator)
         self.region_model = region_model
         self.to_tensor = torchvision.transforms.ToTensor()
+        self.min_boxes_count = min_boxes_count
+        self.device = device
 
     def forward(self, image):
-        predictions = self.region_model.forward([self.to_tensor(image)])
+        predictions = self.region_model.forward([self.to_tensor(image).to(self.device)])
         return predictions[0], None
 
     def backward(self, prediction, addition):
         boxes = prediction['boxes']
+        if len(boxes) < self.min_boxes_count:
+            raise NotEnoughBoxes()
         avg_box_height = (boxes[:, 3] - boxes[:, 1]).mean()
         prediction['box_height'] = avg_box_height
         return prediction
