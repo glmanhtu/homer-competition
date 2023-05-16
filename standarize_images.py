@@ -45,7 +45,7 @@ if __name__ == "__main__":
             continue
         scale = test_args.ref_box_height / box_height
         new_img = img.resize((int(img.width * scale), int(img.height * scale)))
-        out_img = os.path.join(test_args.prediction_path, f'{idx}_{os.path.basename(img_path)}')
+        out_img = os.path.join(test_args.prediction_path, os.path.basename(img_path))
         new_img.save(out_img)
 
 
