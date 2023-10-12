@@ -29,7 +29,7 @@ class BaseOptions:
                                   help='name of the experiment. It decides where to store samples and models')
         self._parser.add_argument('--mode', type=str, default='first_twin',
                                   help='The training mode', choices=['first_twin', 'second_twin', 'testing'])
-        self._parser.add_argument('--wb_mode', type=str, default='online', help='Wandb sync mode')
+        self._parser.add_argument('--wb_mode', type=str, default='offline', help='Wandb sync mode')
         self._parser.add_argument('--wb_entity', type=str, default='glmanhtu', help='Wandb entity name')
         self._parser.add_argument('--wb_project', type=str, default='homer-competition', help='Wandb project')
         self._parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
