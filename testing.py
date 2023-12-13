@@ -13,6 +13,7 @@ from utils import wb_utils
 from utils.chain_operators import LongRectangleCropOperator, PaddingImageOperator, ResizingImageOperator, \
     BoxHeightPredictionOperator, FinalOperator, SplittingOperator, BranchingOperator, ImgRescaleOperator, \
     SplitRegionOperator, LetterDetectionOperator, BatchingOperator
+from utils.exceptions import NotEnoughBoxes
 
 cpu_device = torch.device("cpu")
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
@@ -62,28 +63,31 @@ class Predictor:
 
         for idx, pil_img in enumerate(tqdm.tqdm(ds)):
             start_time = time.time()
-            box_height = predictor(pil_img)
-            img_predictions = letter_predictor((pil_img, {'box_height': box_height}))
-            pred_times.append(time.time() - start_time)
+            try:
+                box_height = predictor(pil_img)
+                img_predictions = letter_predictor((pil_img, {'box_height': box_height}))
+                pred_times.append(time.time() - start_time)
 
-            outputs = {k: v.to(cpu_device) for k, v in img_predictions.items()}
+                outputs = {k: v.to(cpu_device) for k, v in img_predictions.items()}
 
-            # visualise_boxes(pil_img, outputs['boxes'])
-            if log_imgs and len(outputs['boxes']) > 0:
-                img = wb_utils.bounding_boxes(pil_img, outputs['boxes'].numpy(),
-                                              outputs['labels'].type(torch.int64).numpy(),
-                                              outputs['scores'].numpy())
-                logging_imgs.append(img)
+                # visualise_boxes(pil_img, outputs['boxes'])
+                if log_imgs and len(outputs['boxes']) > 0:
+                    img = wb_utils.bounding_boxes(pil_img, outputs['boxes'].numpy(),
+                                                  outputs['labels'].type(torch.int64).numpy(),
+                                                  outputs['scores'].numpy())
+                    logging_imgs.append(img)
 
-            for box, label, score in zip(outputs['boxes'], outputs['labels'], outputs['scores']):
-                box_np = box.numpy().astype(float)
-                annotation = {
-                    'image_id': ds.get_bln_id(idx),
-                    'category_id': idx_to_letter[label.item()],
-                    'bbox': [box_np[0], box_np[1], box_np[2] - box_np[0], box_np[3] - box_np[1]],
-                    'score': float(score.item())
-                }
-                annotations.append(annotation)
+                for box, label, score in zip(outputs['boxes'], outputs['labels'], outputs['scores']):
+                    box_np = box.numpy().astype(float)
+                    annotation = {
+                        'image_id': ds.get_bln_id(idx),
+                        'category_id': idx_to_letter[label.item()],
+                        'bbox': [box_np[0], box_np[1], box_np[2] - box_np[0], box_np[3] - box_np[1]],
+                        'score': float(score.item())
+                    }
+                    annotations.append(annotation)
+            except NotEnoughBoxes:
+                pass
         avg_time = sum(pred_times) / len(pred_times)
         print(f'Avg time per image: {avg_time} seconds')
         return annotations, logging_imgs

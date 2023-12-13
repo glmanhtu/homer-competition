@@ -14,18 +14,11 @@ min_voters = 1
 
 def avg_fusion(prediction_files, dataset_dir):
     all_predictions = {}
-    images = None
     for idx, prediction_file in enumerate(prediction_files):
         with open(prediction_file) as f:
             predictions = json.load(f)
-            images = predictions['images']
         for annotation in predictions['annotations']:
             all_predictions.setdefault(annotation['image_id'], {}).setdefault(idx, []).append(annotation)
-
-    image_map = {}
-    for image in images:
-        im_path = os.path.join(dataset_dir, image['file_name'].replace('./', ''))
-        image_map[image['bln_id']] = im_path
 
     preds = {}
     for image in all_predictions:

@@ -39,3 +39,25 @@ class PapyrusTestDataset(Dataset):
 
     def __len__(self):
         return len(self.images)
+
+
+class TestDataset(Dataset):
+
+    def __init__(self, dataset_path: str):
+        images = glob.glob(os.path.join(dataset_path, '**', '*.jpg'), recursive=True)
+        self.images = images
+
+    def __getitem__(self, index):
+        fname = self.images[index]
+
+        with Image.open(fname) as f:
+            img = f.convert('RGB')
+
+        return img
+
+    def __len__(self):
+        return len(self.images)
+
+    def get_bln_id(self, idx):
+        file_name = os.path.splitext(os.path.basename(self.images[idx]))[0]
+        return file_name
