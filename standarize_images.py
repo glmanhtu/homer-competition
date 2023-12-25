@@ -31,7 +31,7 @@ if __name__ == "__main__":
     # predictor = BranchingOperator(predictor, letter_predictor)
     predictor = SplittingOperator(predictor)
     predictor = LongRectangleCropOperator(predictor, merge_iou_threshold=test_args.merge_iou_threshold)
-    images = glob.glob(os.path.join(test_args.dataset, '**', '*.png'), recursive=True)
+    images = glob.glob(os.path.join(test_args.dataset, '**', '*.jpg'), recursive=True)
     for idx, img_path in enumerate(tqdm.tqdm(images)):
         if 'baselines' in img_path:
             continue
@@ -45,7 +45,8 @@ if __name__ == "__main__":
             continue
         scale = test_args.ref_box_height / box_height
         new_img = img.resize((int(img.width * scale), int(img.height * scale)))
-        out_img = os.path.join(test_args.prediction_path, os.path.basename(img_path))
+        # out_img = os.path.join(test_args.prediction_path, os.path.basename(img_path))
+        out_img = img_path.replace(test_args.dataset, test_args.prediction_path)
         new_img.save(out_img)
 
 
