@@ -1,6 +1,7 @@
 import glob
 import os.path
 
+import PIL
 import torch
 import tqdm
 from PIL import Image
@@ -14,6 +15,7 @@ from utils.exceptions import NotEnoughBoxes
 
 idx_to_letter = {v: k for k, v in letter_mapping.items()}
 # matplotlib.use('TkAgg')
+PIL.Image.MAX_IMAGE_PIXELS = 933120000
 
 
 if __name__ == "__main__":
