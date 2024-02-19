@@ -5,17 +5,17 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, fasterrc
 
 class FirstTwinRCNN(nn.Module):
 
-    def __init__(self, arch, device, n_classes, img_size, dropout=0.5):
+    def __init__(self, arch, device, n_classes, img_size, dropout=0.5, box_score_thresh=0.5):
         super().__init__()
         if arch == 'resnet50':
             model = fasterrcnn_resnet50_fpn_v2(pretrained=True, min_size=img_size, trainable_backbone_layers=5,
                                                max_size=img_size,
-                                               box_score_thresh=0.5,
+                                               box_score_thresh=box_score_thresh,
                                                box_detections_per_img=320)
         elif arch == 'mobinet':
             model = fasterrcnn_mobilenet_v3_large_fpn(pretrained=True, min_size=img_size, trainable_backbone_layers=6,
                                                       max_size=img_size,
-                                                      box_score_thresh=0.5,
+                                                      box_score_thresh=box_score_thresh,
                                                       box_detections_per_img=320)
         else:
             raise Exception(f'Arch {arch} is not implemented')

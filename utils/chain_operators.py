@@ -125,10 +125,14 @@ class BoxHeightPredictionOperator(ChainOperator):
         self.device = device
 
     def forward(self, image):
-        predictions = self.region_model.forward([self.to_tensor(image).to(self.device)])
-        return predictions[0], None
+        images = []
+        for rotate in [0, 90, 180, 270]:
+            images.append(self.to_tensor(image.rotate(rotate, expand=True)).to(self.device))
+        predictions = self.region_model.forward(images)
+        return predictions, None
 
-    def backward(self, prediction, addition):
+    def backward(self, predictions, addition):
+        prediction = sorted(predictions, key=lambda x: len(x['boxes']), reverse=True)[0]
         boxes = prediction['boxes']
         if len(boxes) < self.min_boxes_count:
             raise NotEnoughBoxes()

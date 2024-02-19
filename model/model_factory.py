@@ -9,9 +9,10 @@ class ModelsFactory:
         pass
 
     @staticmethod
-    def get_model(args, mode, working_dir, is_train, device, dropout=0.4):
+    def get_model(args, mode, working_dir, is_train, device, dropout=0.4, box_score_threshold=0.5):
         if mode == 'first_twin':
-            model = FirstTwinRCNN(args.p1_arch, device, len(letter_mapping.keys()), args.image_size, dropout=dropout)
+            model = FirstTwinRCNN(args.p1_arch, device, len(letter_mapping.keys()), args.image_size,
+                                  dropout=dropout, box_score_thresh=box_score_threshold)
         else:
             model = SecondTwinRCNN(args.p2_arch, device, len(letter_mapping.keys()), args.p2_image_size, dropout=dropout)
         model = ModelWrapper(args, mode, working_dir, model, is_train, device)
