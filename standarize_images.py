@@ -23,7 +23,7 @@ if __name__ == "__main__":
     device = torch.device('cuda' if test_args.cuda else 'cpu')
     working_dir = os.path.join(test_args.checkpoints_dir, test_args.name)
     region_model = ModelsFactory.get_model(test_args, 'first_twin', working_dir, is_train=False,
-                                           device=device, box_score_threshold=0.3)
+                                           device=device, box_score_threshold=0.5)
     region_model.load_network(os.path.join(test_args.pretrained_model_path, 'first_twin-net.pth'))
     region_model.set_eval()
 
