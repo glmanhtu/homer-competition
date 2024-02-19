@@ -49,7 +49,7 @@ if __name__ == "__main__":
             # print(f'Ignore image: {img_path}')
             excluded += 1
             bar.set_description(f'Excluded {excluded}/{len(images)}')
-            img.save(f'/media/mvu/MVu/datasets/Geshaem/IRCL_Excluded/{idx}.jpg')
+            # img.save(f'/media/mvu/MVu/datasets/Geshaem/IRCL_Excluded/{idx}.jpg')
             continue
         scale = test_args.ref_box_height / box_height
         new_img = img.resize((int(img.width * scale), int(img.height * scale)))
