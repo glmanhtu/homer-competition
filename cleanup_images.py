@@ -22,12 +22,15 @@ if __name__ == "__main__":
     test_args = TestOptions().parse()
     device = torch.device('cuda' if test_args.cuda else 'cpu')
     working_dir = os.path.join(test_args.checkpoints_dir, test_args.name)
-    region_model = ModelsFactory.get_model(test_args, 'first_twin', working_dir, is_train=False, device=device)
+    region_model = ModelsFactory.get_model(test_args, 'first_twin', working_dir, is_train=False,
+                                           device=device, box_score_threshold=0.2)
     region_model.load_network(os.path.join(test_args.pretrained_model_path, 'first_twin-net.pth'))
     region_model.set_eval()
 
     # Operators for detecting papyrus regions and estimating box height
-    predictor = BoxHeightPredictionOperator(FinalOperator(), region_model, min_boxes_count=3, device=device)
+    predictor = BoxHeightPredictionOperator(FinalOperator(), region_model, min_boxes_count=test_args.min_box_count,
+                                            device=device)
+
     predictor = PaddingImageOperator(predictor, padding_size=20)
     predictor = ResizingImageOperator(predictor, test_args.image_size)
     # predictor = BranchingOperator(predictor, letter_predictor)
@@ -35,8 +38,6 @@ if __name__ == "__main__":
     predictor = LongRectangleCropOperator(predictor, merge_iou_threshold=test_args.merge_iou_threshold)
     images = glob.glob(os.path.join(test_args.dataset, '**', '*.jpg'), recursive=True)
     for idx, img_path in enumerate(tqdm.tqdm(images)):
-        if 'baselines' in img_path:
-            continue
         with Image.open(img_path) as f:
             img = f.convert('RGB')
 
